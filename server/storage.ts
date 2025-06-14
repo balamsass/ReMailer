@@ -27,7 +27,7 @@ import {
   type InsertApiKeyUsage
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, like, sql, desc, count, inArray } from "drizzle-orm";
+import { eq, and, like, sql, desc, asc, count, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -43,7 +43,7 @@ export interface IStorage {
   deleteApiToken(tokenId: number, userId: number): Promise<boolean>;
 
   // Contact operations
-  getContacts(userId: number, options?: { page?: number; limit?: number; search?: string; tags?: string }): Promise<{
+  getContacts(userId: number, options?: { page?: number; limit?: number; search?: string; tags?: string; status?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }): Promise<{
     contacts: Contact[];
     total: number;
     active: number;
@@ -53,6 +53,8 @@ export interface IStorage {
   updateContact(contactId: number, userId: number, data: Partial<InsertContact>): Promise<Contact | undefined>;
   deleteContact(contactId: number, userId: number): Promise<boolean>;
   importContacts(userId: number, contacts: any[]): Promise<{ successful: number; failed: number; errors: string[] }>;
+  bulkUpdateContactStatus(contactIds: number[], userId: number, status: string): Promise<{ updated: number }>;
+  bulkDeleteContacts(contactIds: number[], userId: number): Promise<{ deleted: number }>;
 
   // Campaign operations
   getCampaigns(userId: number): Promise<Campaign[]>;
@@ -179,19 +181,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Contact operations
-  async getContacts(userId: number, options: { page?: number; limit?: number; search?: string; tags?: string } = {}): Promise<{
+  async getContacts(userId: number, options: { page?: number; limit?: number; search?: string; tags?: string; status?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' } = {}): Promise<{
     contacts: Contact[];
     total: number;
     active: number;
   }> {
-    const { page = 1, limit = 50, search, tags } = options;
+    const { page = 1, limit = 50, search, tags, status, sortBy = 'createdAt', sortOrder = 'desc' } = options;
     const offset = (page - 1) * limit;
 
     let whereConditions = [eq(contacts.userId, userId)];
 
     if (search) {
       whereConditions.push(
-        sql`${contacts.email} ILIKE ${`%${search}%`} OR ${contacts.name} ILIKE ${`%${search}%`}`
+        sql`${contacts.email} ILIKE ${`%${search}%`} OR ${contacts.name} ILIKE ${`%${search}%`} OR ${contacts.company} ILIKE ${`%${search}%`} OR ${contacts.phone} ILIKE ${`%${search}%`}`
       );
     }
 
@@ -199,10 +201,21 @@ export class DatabaseStorage implements IStorage {
       whereConditions.push(sql`${tags} = ANY(${contacts.tags})`);
     }
 
+    if (status) {
+      whereConditions.push(eq(contacts.status, status));
+    }
+
     const query = db.select().from(contacts).where(and(...whereConditions));
 
+    // Add sorting
+    const sortColumn = sortBy === 'name' ? contacts.name :
+                      sortBy === 'email' ? contacts.email :
+                      sortBy === 'company' ? contacts.company :
+                      sortBy === 'status' ? contacts.status :
+                      contacts.createdAt;
+
     const contactsResult = await query
-      .orderBy(desc(contacts.createdAt))
+      .orderBy(sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn))
       .limit(limit)
       .offset(offset);
 

@@ -277,6 +277,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk contact operations
+  app.patch("/api/contacts/bulk/status", requireSession, async (req, res) => {
+    try {
+      const { contactIds, status } = req.body;
+      if (!Array.isArray(contactIds) || !status) {
+        return res.status(400).json({ error: "Invalid request data" });
+      }
+      
+      const results = await storage.bulkUpdateContactStatus(contactIds, req.user.id, status);
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to update contacts" });
+    }
+  });
+
+  app.delete("/api/contacts/bulk", requireSession, async (req, res) => {
+    try {
+      const { contactIds } = req.body;
+      if (!Array.isArray(contactIds)) {
+        return res.status(400).json({ error: "Invalid request data" });
+      }
+      
+      const results = await storage.bulkDeleteContacts(contactIds, req.user.id);
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to delete contacts" });
+    }
+  });
+
   // Analytics routes
   app.get("/api/analytics", requireSession, async (req, res) => {
     try {
