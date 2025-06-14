@@ -1116,6 +1116,89 @@ export class DatabaseStorage implements IStorage {
       topEndpoints,
     };
   }
+
+  // Image operations
+  async getImages(userId: number, options: { page?: number; limit?: number; search?: string; tags?: string } = {}): Promise<{
+    images: Image[];
+    total: number;
+  }> {
+    const { page = 1, limit = 20, search, tags } = options;
+    const offset = (page - 1) * limit;
+
+    let whereClause = eq(images.userId, userId);
+
+    if (search) {
+      whereClause = and(
+        whereClause,
+        like(images.name, `%${search}%`)
+      );
+    }
+
+    if (tags) {
+      const tagArray = tags.split(',').map(tag => tag.trim());
+      whereClause = and(
+        whereClause,
+        sql`${images.tags} && ARRAY[${tagArray.map(tag => `'${tag}'`).join(',')}]::text[]`
+      );
+    }
+
+    const [totalResult] = await db
+      .select({ count: count() })
+      .from(images)
+      .where(whereClause);
+
+    const imageList = await db
+      .select()
+      .from(images)
+      .where(whereClause)
+      .orderBy(desc(images.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return {
+      images: imageList,
+      total: totalResult.count,
+    };
+  }
+
+  async getImage(imageId: number, userId: number): Promise<Image | undefined> {
+    const [image] = await db
+      .select()
+      .from(images)
+      .where(and(eq(images.id, imageId), eq(images.userId, userId)));
+
+    return image || undefined;
+  }
+
+  async createImage(image: InsertImage): Promise<Image> {
+    const [newImage] = await db
+      .insert(images)
+      .values(image)
+      .returning();
+
+    return newImage;
+  }
+
+  async updateImage(imageId: number, userId: number, data: Partial<InsertImage>): Promise<Image | undefined> {
+    const [updated] = await db
+      .update(images)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(images.id, imageId), eq(images.userId, userId)))
+      .returning();
+
+    return updated || undefined;
+  }
+
+  async deleteImage(imageId: number, userId: number): Promise<boolean> {
+    const result = await db
+      .delete(images)
+      .where(and(eq(images.id, imageId), eq(images.userId, userId)));
+
+    return result.rowCount > 0;
+  }
 }
 
 export const storage = new DatabaseStorage();

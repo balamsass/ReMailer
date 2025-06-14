@@ -740,6 +740,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Image management routes
+  app.get("/api/images", requireSession, async (req, res) => {
+    try {
+      const { page, limit, search, tags } = req.query;
+      const userId = req.session.userId;
+      
+      const images = await storage.getImages(userId, {
+        page: page ? parseInt(page as string) : undefined,
+        limit: limit ? parseInt(limit as string) : undefined,
+        search: search as string,
+        tags: tags as string,
+      });
+      
+      res.json(images);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch images" });
+    }
+  });
+
+  app.get("/api/images/:id", requireSession, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId;
+      
+      const image = await storage.getImage(parseInt(id), userId);
+      if (!image) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+      
+      res.json(image);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch image" });
+    }
+  });
+
+  app.post("/api/images", requireSession, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const { name, url, altText, tags, description } = req.body;
+      
+      if (!name || !url) {
+        return res.status(400).json({ error: "Name and URL are required" });
+      }
+      
+      const image = await storage.createImage({
+        userId,
+        name,
+        url,
+        altText: altText || "",
+        tags: tags || [],
+        description: description || "",
+      });
+      
+      res.json(image);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to create image" });
+    }
+  });
+
+  app.put("/api/images/:id", requireSession, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId;
+      const { name, url, altText, tags, description } = req.body;
+      
+      const image = await storage.updateImage(parseInt(id), userId, {
+        name,
+        url,
+        altText,
+        tags,
+        description,
+      });
+      
+      if (!image) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+      
+      res.json(image);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to update image" });
+    }
+  });
+
+  app.delete("/api/images/:id", requireSession, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId;
+      
+      const deleted = await storage.deleteImage(parseInt(id), userId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to delete image" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
