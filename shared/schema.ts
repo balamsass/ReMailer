@@ -34,6 +34,7 @@ export const contacts = pgTable("contacts", {
   jobTitle: text("job_title"),
   tags: text("tags").array().default([]), // array of tag names
   status: text("status").notNull().default("active"), // active, unsubscribed, bounced
+  metadata: jsonb("metadata"), // flexible field for custom contact data
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

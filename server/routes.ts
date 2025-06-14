@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertContactSchema, insertCampaignSchema, insertApiTokenSchema } from "@shared/schema";
+import { insertUserSchema, insertContactSchema, insertCampaignSchema, insertApiTokenSchema, insertListSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { z } from "zod";
@@ -206,6 +206,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Failed to delete campaign" });
+    }
+  });
+
+  // Lists routes
+  app.get("/api/lists", requireSession, async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const search = req.query.search as string;
+      const tags = req.query.tags as string;
+      const status = req.query.status as string;
+      
+      const result = await storage.getLists(req.user.id, { page, limit, search, tags, status });
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch lists" });
+    }
+  });
+
+  app.get("/api/lists/:id", requireSession, async (req, res) => {
+    try {
+      const list = await storage.getList(parseInt(req.params.id), req.user.id);
+      if (!list) {
+        return res.status(404).json({ error: "List not found" });
+      }
+      res.json(list);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch list" });
+    }
+  });
+
+  app.post("/api/lists", requireSession, async (req, res) => {
+    try {
+      const data = insertListSchema.parse({
+        ...req.body,
+        userId: req.user.id,
+      });
+      
+      const list = await storage.createList(data);
+      res.json(list);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to create list" });
+    }
+  });
+
+  app.put("/api/lists/:id", requireSession, async (req, res) => {
+    try {
+      const listId = parseInt(req.params.id);
+      const updateData = insertListSchema.partial().parse(req.body);
+      
+      const list = await storage.updateList(listId, req.user.id, updateData);
+      if (!list) {
+        return res.status(404).json({ error: "List not found" });
+      }
+      res.json(list);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to update list" });
+    }
+  });
+
+  app.delete("/api/lists/:id", requireSession, async (req, res) => {
+    try {
+      const success = await storage.deleteList(parseInt(req.params.id), req.user.id);
+      if (!success) {
+        return res.status(404).json({ error: "List not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to delete list" });
+    }
+  });
+
+  app.post("/api/lists/:id/clone", requireSession, async (req, res) => {
+    try {
+      const { name } = req.body;
+      if (!name) {
+        return res.status(400).json({ error: "New list name is required" });
+      }
+      
+      const clonedList = await storage.cloneList(parseInt(req.params.id), req.user.id, name);
+      if (!clonedList) {
+        return res.status(404).json({ error: "List not found" });
+      }
+      res.json(clonedList);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to clone list" });
+    }
+  });
+
+  app.get("/api/lists/:id/contacts", requireSession, async (req, res) => {
+    try {
+      const result = await storage.executeListFilter(parseInt(req.params.id), req.user.id);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to execute list filter" });
+    }
+  });
+
+  app.post("/api/lists/preview", requireSession, async (req, res) => {
+    try {
+      const { filterDefinition } = req.body;
+      const result = await storage.previewListFilter(filterDefinition, req.user.id);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to preview filter" });
     }
   });
 

@@ -5,6 +5,7 @@ import {
   campaigns, 
   campaignContacts, 
   campaignAnalytics,
+  lists,
   auditLogs,
   serviceHealth,
   apiKeyUsage,
@@ -19,6 +20,8 @@ import {
   type CampaignContact,
   type InsertCampaignContact,
   type CampaignAnalytics,
+  type List,
+  type InsertList,
   type AuditLog,
   type InsertAuditLog,
   type ServiceHealth,
@@ -55,6 +58,26 @@ export interface IStorage {
   importContacts(userId: number, contacts: any[]): Promise<{ successful: number; failed: number; errors: string[] }>;
   bulkUpdateContactStatus(contactIds: number[], userId: number, status: string): Promise<{ updated: number }>;
   bulkDeleteContacts(contactIds: number[], userId: number): Promise<{ deleted: number }>;
+
+  // List operations
+  getLists(userId: number, options?: { page?: number; limit?: number; search?: string; tags?: string; status?: string }): Promise<{
+    lists: List[];
+    total: number;
+  }>;
+  getList(listId: number, userId: number): Promise<List | undefined>;
+  createList(list: InsertList): Promise<List>;
+  updateList(listId: number, userId: number, data: Partial<InsertList>): Promise<List | undefined>;
+  deleteList(listId: number, userId: number): Promise<boolean>;
+  cloneList(listId: number, userId: number, newName: string): Promise<List | undefined>;
+  executeListFilter(listId: number, userId: number): Promise<{
+    contacts: Contact[];
+    count: number;
+  }>;
+  previewListFilter(filterDefinition: any, userId: number): Promise<{
+    contacts: Contact[];
+    count: number;
+  }>;
+  updateListMatchCount(listId: number, count: number): Promise<void>;
 
   // Campaign operations
   getCampaigns(userId: number): Promise<Campaign[]>;
@@ -340,6 +363,257 @@ export class DatabaseStorage implements IStorage {
       );
     
     return { deleted: result.rowCount || 0 };
+  }
+
+  // List operations
+  async getLists(userId: number, options: { page?: number; limit?: number; search?: string; tags?: string; status?: string } = {}): Promise<{
+    lists: List[];
+    total: number;
+  }> {
+    const { page = 1, limit = 10, search, tags, status } = options;
+    const offset = (page - 1) * limit;
+
+    let query = db
+      .select()
+      .from(lists)
+      .where(eq(lists.userId, userId));
+
+    if (search) {
+      query = query.where(
+        and(
+          eq(lists.userId, userId),
+          like(lists.name, `%${search}%`)
+        )
+      );
+    }
+
+    if (tags) {
+      const tagArray = tags.split(',').map(tag => tag.trim());
+      for (const tag of tagArray) {
+        query = query.where(
+          and(
+            eq(lists.userId, userId),
+            sql`${lists.tags} @> ${JSON.stringify([tag])}`
+          )
+        );
+      }
+    }
+
+    if (status) {
+      query = query.where(
+        and(
+          eq(lists.userId, userId),
+          eq(lists.status, status)
+        )
+      );
+    }
+
+    const [totalResult] = await db
+      .select({ count: count() })
+      .from(lists)
+      .where(eq(lists.userId, userId));
+
+    const listResults = await query
+      .orderBy(desc(lists.updatedAt))
+      .limit(limit)
+      .offset(offset);
+
+    return {
+      lists: listResults,
+      total: totalResult.count
+    };
+  }
+
+  async getList(listId: number, userId: number): Promise<List | undefined> {
+    const [list] = await db
+      .select()
+      .from(lists)
+      .where(
+        and(
+          eq(lists.id, listId),
+          eq(lists.userId, userId)
+        )
+      );
+    return list;
+  }
+
+  async createList(list: InsertList): Promise<List> {
+    const [newList] = await db
+      .insert(lists)
+      .values(list)
+      .returning();
+    return newList;
+  }
+
+  async updateList(listId: number, userId: number, data: Partial<InsertList>): Promise<List | undefined> {
+    const [updatedList] = await db
+      .update(lists)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(lists.id, listId),
+          eq(lists.userId, userId)
+        )
+      )
+      .returning();
+    return updatedList;
+  }
+
+  async deleteList(listId: number, userId: number): Promise<boolean> {
+    const result = await db
+      .delete(lists)
+      .where(
+        and(
+          eq(lists.id, listId),
+          eq(lists.userId, userId)
+        )
+      );
+    return (result.rowCount || 0) > 0;
+  }
+
+  async cloneList(listId: number, userId: number, newName: string): Promise<List | undefined> {
+    const originalList = await this.getList(listId, userId);
+    if (!originalList) return undefined;
+
+    const [clonedList] = await db
+      .insert(lists)
+      .values({
+        name: newName,
+        description: `Copy of ${originalList.name}`,
+        userId: userId,
+        filterDefinition: originalList.filterDefinition,
+        tags: originalList.tags,
+        status: 'active'
+      })
+      .returning();
+
+    return clonedList;
+  }
+
+  private evaluateFilter(contact: Contact, filterDefinition: any): boolean {
+    if (!filterDefinition || !filterDefinition.rules) return true;
+
+    const { operator = 'AND', rules } = filterDefinition;
+
+    const evaluateRule = (rule: any): boolean => {
+      if (rule.rules) {
+        // Nested group
+        const nestedResults = rule.rules.map(evaluateRule);
+        return rule.operator === 'OR' 
+          ? nestedResults.some(Boolean)
+          : nestedResults.every(Boolean);
+      }
+
+      const { field, operator: ruleOp, value } = rule;
+      const contactValue = this.getContactFieldValue(contact, field);
+
+      switch (ruleOp) {
+        case 'equals':
+          return contactValue === value;
+        case 'not_equals':
+          return contactValue !== value;
+        case 'contains':
+          return String(contactValue || '').toLowerCase().includes(String(value || '').toLowerCase());
+        case 'not_contains':
+          return !String(contactValue || '').toLowerCase().includes(String(value || '').toLowerCase());
+        case 'starts_with':
+          return String(contactValue || '').toLowerCase().startsWith(String(value || '').toLowerCase());
+        case 'ends_with':
+          return String(contactValue || '').toLowerCase().endsWith(String(value || '').toLowerCase());
+        case 'is_empty':
+          return !contactValue || contactValue === '';
+        case 'is_not_empty':
+          return contactValue && contactValue !== '';
+        case 'in':
+          return Array.isArray(value) && value.includes(contactValue);
+        case 'not_in':
+          return Array.isArray(value) && !value.includes(contactValue);
+        case 'has_tag':
+          return Array.isArray(contact.tags) && contact.tags.includes(value);
+        case 'not_has_tag':
+          return !Array.isArray(contact.tags) || !contact.tags.includes(value);
+        default:
+          return false;
+      }
+    };
+
+    const results = rules.map(evaluateRule);
+    return operator === 'OR' 
+      ? results.some(Boolean)
+      : results.every(Boolean);
+  }
+
+  private getContactFieldValue(contact: Contact, field: string): any {
+    switch (field) {
+      case 'email':
+        return contact.email;
+      case 'name':
+        return contact.name;
+      case 'phone':
+        return contact.phone;
+      case 'company':
+        return contact.company;
+      case 'jobTitle':
+        return contact.jobTitle;
+      case 'status':
+        return contact.status;
+      case 'tags':
+        return contact.tags;
+      case 'notes':
+        return contact.notes;
+      default:
+        // Check metadata for custom fields
+        if (contact.metadata && typeof contact.metadata === 'object') {
+          return (contact.metadata as any)[field];
+        }
+        return null;
+    }
+  }
+
+  async executeListFilter(listId: number, userId: number): Promise<{
+    contacts: Contact[];
+    count: number;
+  }> {
+    const list = await this.getList(listId, userId);
+    if (!list) {
+      return { contacts: [], count: 0 };
+    }
+
+    return this.previewListFilter(list.filterDefinition, userId);
+  }
+
+  async previewListFilter(filterDefinition: any, userId: number): Promise<{
+    contacts: Contact[];
+    count: number;
+  }> {
+    // Get all contacts for the user
+    const allContacts = await db
+      .select()
+      .from(contacts)
+      .where(eq(contacts.userId, userId));
+
+    // Apply filter logic
+    const filteredContacts = allContacts.filter(contact => 
+      this.evaluateFilter(contact, filterDefinition)
+    );
+
+    return {
+      contacts: filteredContacts,
+      count: filteredContacts.length
+    };
+  }
+
+  async updateListMatchCount(listId: number, count: number): Promise<void> {
+    await db
+      .update(lists)
+      .set({ 
+        matchCount: count,
+        updatedAt: new Date()
+      })
+      .where(eq(lists.id, listId));
   }
 
   // Campaign operations
