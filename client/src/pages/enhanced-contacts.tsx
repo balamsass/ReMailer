@@ -81,7 +81,7 @@ export default function EnhancedContacts() {
         ...data,
         tags: data.tags ? data.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
       };
-      return apiRequest('/api/contacts', 'POST', contactData);
+      return apiRequest('POST', '/api/contacts', contactData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
@@ -108,7 +108,7 @@ export default function EnhancedContacts() {
         ...data,
         tags: data.tags ? data.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
       };
-      return apiRequest(`/api/contacts/${editingContact.id}`, 'PATCH', contactData);
+      return apiRequest('PATCH', `/api/contacts/${editingContact.id}`, contactData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
@@ -131,7 +131,7 @@ export default function EnhancedContacts() {
 
   const deleteContactMutation = useMutation({
     mutationFn: async (contactId: number) => {
-      return apiRequest(`/api/contacts/${contactId}`, 'DELETE');
+      return apiRequest('DELETE', `/api/contacts/${contactId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
@@ -151,7 +151,7 @@ export default function EnhancedContacts() {
 
   const changeStatusMutation = useMutation({
     mutationFn: async ({ contactId, status }: { contactId: number; status: string }) => {
-      return apiRequest(`/api/contacts/${contactId}`, 'PATCH', { status });
+      return apiRequest('PATCH', `/api/contacts/${contactId}`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
@@ -172,12 +172,12 @@ export default function EnhancedContacts() {
   const bulkActionMutation = useMutation({
     mutationFn: async ({ action, contactIds }: { action: string; contactIds: number[] }) => {
       if (action === 'delete') {
-        return apiRequest('/api/contacts/bulk-delete', 'POST', { contactIds });
+        return apiRequest('POST', '/api/contacts/bulk-delete', { contactIds });
       } else {
         const status = action === 'activate' ? 'active' : 
                      action === 'deactivate' ? 'inactive' :
                      action === 'bounced' ? 'bounced' : 'unsubscribed';
-        return apiRequest('/api/contacts/bulk-update-status', 'POST', { contactIds, status });
+        return apiRequest('POST', '/api/contacts/bulk-update-status', { contactIds, status });
       }
     },
     onSuccess: (_, { action }) => {
