@@ -6,6 +6,7 @@ import {
   campaignContacts, 
   campaignAnalytics,
   lists,
+  images,
   auditLogs,
   serviceHealth,
   apiKeyUsage,
@@ -22,6 +23,8 @@ import {
   type CampaignAnalytics,
   type List,
   type InsertList,
+  type Image,
+  type InsertImage,
   type AuditLog,
   type InsertAuditLog,
   type ServiceHealth,
@@ -143,6 +146,16 @@ export interface IStorage {
     errorRate: number;
     topEndpoints: any[];
   }>;
+
+  // Image operations
+  getImages(userId: number, options?: { page?: number; limit?: number; search?: string; tags?: string }): Promise<{
+    images: Image[];
+    total: number;
+  }>;
+  getImage(imageId: number, userId: number): Promise<Image | undefined>;
+  createImage(image: InsertImage): Promise<Image>;
+  updateImage(imageId: number, userId: number, data: Partial<InsertImage>): Promise<Image | undefined>;
+  deleteImage(imageId: number, userId: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {

@@ -243,6 +243,22 @@ export const serviceHealth = pgTable("service_health", {
   uptime: decimal("uptime", { precision: 5, scale: 2 }).default("100"), // percentage
 });
 
+export const images = pgTable("images", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  filename: text("filename").notNull(),
+  originalName: text("original_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(), // file size in bytes
+  width: integer("width"),
+  height: integer("height"),
+  url: text("url").notNull(), // stored file path or URL
+  tags: text("tags").array().default([]),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const apiKeyUsage = pgTable("api_key_usage", {
   id: serial("id").primaryKey(),
   apiTokenId: integer("api_token_id").references(() => apiTokens.id),
@@ -263,6 +279,13 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   }),
 }));
 
+export const imagesRelations = relations(images, ({ one }) => ({
+  user: one(users, {
+    fields: [images.userId],
+    references: [users.id],
+  }),
+}));
+
 export const apiKeyUsageRelations = relations(apiKeyUsage, ({ one }) => ({
   apiToken: one(apiTokens, {
     fields: [apiKeyUsage.apiTokenId],
@@ -270,7 +293,16 @@ export const apiKeyUsageRelations = relations(apiKeyUsage, ({ one }) => ({
   }),
 }));
 
+// Insert schemas for new tables
+export const insertImageSchema = createInsertSchema(images).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types for new tables
+export type Image = typeof images.$inferSelect;
+export type InsertImage = z.infer<typeof insertImageSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
 export type ServiceHealth = typeof serviceHealth.$inferSelect;
