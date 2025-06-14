@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -7,12 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, CheckCircle, Clock, Users, Activity, Shield, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { AlertTriangle, CheckCircle, Clock, Users, Activity, Shield, Trash2, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
 export default function Admin() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState("users");
   const [userFilters, setUserFilters] = useState({ search: "", role: "all" });
   const [auditFilters, setAuditFilters] = useState({ 
@@ -20,6 +23,15 @@ export default function Admin() {
     action: "", 
     startDate: "", 
     endDate: "" 
+  });
+  
+  // Create user dialog state
+  const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
+  const [newUser, setNewUser] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "user"
   });
 
   // Users data
@@ -55,6 +67,41 @@ export default function Admin() {
   const { data: apiUsage = { totalRequests: 0, avgResponseTime: 0, errorRate: 0, topEndpoints: [] } } = useQuery({
     queryKey: ["/api/admin/api-usage"],
   });
+
+  // Create user mutation
+  const createUserMutation = useMutation({
+    mutationFn: async (userData: { name: string; email: string; password: string; role: string }) => {
+      return await apiRequest("/api/admin/users", "POST", userData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setIsCreateUserOpen(false);
+      setNewUser({ name: "", email: "", password: "", role: "user" });
+      toast({
+        title: "Success",
+        description: "User created successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateUser = () => {
+    if (!newUser.name || !newUser.email || !newUser.password) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    createUserMutation.mutate(newUser);
+  };
 
   const updateUserRole = async (userId: number, role: string) => {
     try {
@@ -155,10 +202,18 @@ export default function Admin() {
         <TabsContent value="users" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>User Management</CardTitle>
-              <CardDescription>
-                Manage user accounts and permissions
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>User Management</CardTitle>
+                  <CardDescription>
+                    Manage user accounts and permissions
+                  </CardDescription>
+                </div>
+                <Button onClick={() => setIsCreateUserOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create User
+                </Button>
+              </div>
               
               <div className="flex gap-4 pt-4">
                 <Input
@@ -418,6 +473,91 @@ export default function Admin() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Create User Dialog */}
+      <Dialog open={isCreateUserOpen} onOpenChange={setIsCreateUserOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create New User</DialogTitle>
+            <DialogDescription>
+              Add a new user to the system. They will receive login credentials via email.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="name"
+                value={newUser.name}
+                onChange={(e) => setNewUser(prev => ({ ...prev, name: e.target.value }))}
+                className="col-span-3"
+                placeholder="John Doe"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="email" className="text-right">
+                Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={newUser.email}
+                onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                className="col-span-3"
+                placeholder="john@example.com"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="password" className="text-right">
+                Password
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                value={newUser.password}
+                onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                className="col-span-3"
+                placeholder="Enter password"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="role" className="text-right">
+                Role
+              </Label>
+              <Select
+                value={newUser.role}
+                onValueChange={(value) => setNewUser(prev => ({ ...prev, role: value }))}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsCreateUserOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleCreateUser}
+              disabled={createUserMutation.isPending}
+            >
+              {createUserMutation.isPending ? "Creating..." : "Create User"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

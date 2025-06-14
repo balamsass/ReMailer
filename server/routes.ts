@@ -665,6 +665,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/admin/users", requireSession, requireAdmin, async (req, res) => {
+    try {
+      const { name, email, password, role = "user" } = req.body;
+      
+      if (!name || !email || !password) {
+        return res.status(400).json({ error: "Name, email, and password are required" });
+      }
+
+      if (!['user', 'admin'].includes(role)) {
+        return res.status(400).json({ error: "Invalid role" });
+      }
+
+      // Check if user with email already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ error: "User with this email already exists" });
+      }
+
+      const user = await storage.createUser({
+        name,
+        email,
+        password,
+        role,
+      });
+
+      // Log the action
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: "create_user",
+        resource: "user",
+        resourceId: user.id.toString(),
+        details: { name, email, role },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      });
+
+      res.status(201).json(user);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to create user" });
+    }
+  });
+
   app.patch("/api/admin/users/:id/role", requireSession, requireAdmin, async (req, res) => {
     try {
       const userId = parseInt(req.params.id);
