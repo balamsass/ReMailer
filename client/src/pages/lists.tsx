@@ -225,7 +225,12 @@ export default function Lists() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (filterDefinition.rules.length > 0) {
-        previewFilter();
+        setIsPreviewLoading(true);
+        previewFilterMutation.mutate(filterDefinition);
+      } else {
+        setPreviewContacts([]);
+        setPreviewCount(0);
+        setIsPreviewLoading(false);
       }
     }, 500);
     return () => clearTimeout(timer);

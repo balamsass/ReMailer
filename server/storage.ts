@@ -496,13 +496,13 @@ export class DatabaseStorage implements IStorage {
   private evaluateFilter(contact: Contact, filterDefinition: any): boolean {
     if (!filterDefinition || !filterDefinition.rules) return true;
 
-    const { operator = 'AND', rules } = filterDefinition;
+    const { logic = 'AND', rules } = filterDefinition;
 
     const evaluateRule = (rule: any): boolean => {
       if (rule.rules) {
         // Nested group
         const nestedResults = rule.rules.map(evaluateRule);
-        return rule.operator === 'OR' 
+        return rule.logic === 'OR' 
           ? nestedResults.some(Boolean)
           : nestedResults.every(Boolean);
       }
@@ -510,38 +510,56 @@ export class DatabaseStorage implements IStorage {
       const { field, operator: ruleOp, value } = rule;
       const contactValue = this.getContactFieldValue(contact, field);
 
+      // Special handling for tags field
+      if (field === 'tags') {
+        const contactTags = Array.isArray(contact.tags) ? contact.tags : [];
+        switch (ruleOp) {
+          case 'contains':
+            return contactTags.some(tag => 
+              String(tag || '').toLowerCase().includes(String(value || '').toLowerCase())
+            );
+          case 'notContains':
+            return !contactTags.some(tag => 
+              String(tag || '').toLowerCase().includes(String(value || '').toLowerCase())
+            );
+          case 'equals':
+            return contactTags.includes(value);
+          case 'notEquals':
+            return !contactTags.includes(value);
+          case 'isEmpty':
+            return contactTags.length === 0;
+          case 'isNotEmpty':
+            return contactTags.length > 0;
+          default:
+            return false;
+        }
+      }
+
+      // Regular field evaluation
       switch (ruleOp) {
         case 'equals':
           return contactValue === value;
-        case 'not_equals':
+        case 'notEquals':
           return contactValue !== value;
         case 'contains':
           return String(contactValue || '').toLowerCase().includes(String(value || '').toLowerCase());
-        case 'not_contains':
+        case 'notContains':
           return !String(contactValue || '').toLowerCase().includes(String(value || '').toLowerCase());
-        case 'starts_with':
+        case 'startsWith':
           return String(contactValue || '').toLowerCase().startsWith(String(value || '').toLowerCase());
-        case 'ends_with':
+        case 'endsWith':
           return String(contactValue || '').toLowerCase().endsWith(String(value || '').toLowerCase());
-        case 'is_empty':
+        case 'isEmpty':
           return !contactValue || contactValue === '';
-        case 'is_not_empty':
+        case 'isNotEmpty':
           return contactValue && contactValue !== '';
-        case 'in':
-          return Array.isArray(value) && value.includes(contactValue);
-        case 'not_in':
-          return Array.isArray(value) && !value.includes(contactValue);
-        case 'has_tag':
-          return Array.isArray(contact.tags) && contact.tags.includes(value);
-        case 'not_has_tag':
-          return !Array.isArray(contact.tags) || !contact.tags.includes(value);
         default:
           return false;
       }
     };
 
     const results = rules.map(evaluateRule);
-    return operator === 'OR' 
+    return logic === 'OR' 
       ? results.some(Boolean)
       : results.every(Boolean);
   }
