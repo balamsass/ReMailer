@@ -56,8 +56,12 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
         return await fetch("/api/images/upload", {
           method: "POST",
           body: data,
-        }).then(res => {
-          if (!res.ok) throw new Error('Upload failed');
+          credentials: 'same-origin',
+        }).then(async res => {
+          if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(errorText || 'Upload failed');
+          }
           return res.json();
         });
       } else {
