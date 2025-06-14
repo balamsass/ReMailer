@@ -87,6 +87,9 @@ export default function EnhancedContacts() {
       queryClient.invalidateQueries({ 
         predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/contacts')
       });
+      queryClient.refetchQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/contacts')
+      });
       setIsAddOpen(false);
       form.reset();
       toast({
@@ -114,6 +117,9 @@ export default function EnhancedContacts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/contacts')
+      });
+      queryClient.refetchQueries({ 
         predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/contacts')
       });
       setEditingContact(null);
@@ -163,6 +169,9 @@ export default function EnhancedContacts() {
       queryClient.invalidateQueries({ 
         predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/contacts')
       });
+      queryClient.refetchQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/contacts')
+      });
       toast({
         title: "Success",
         description: "Contact status updated",
@@ -190,6 +199,9 @@ export default function EnhancedContacts() {
     },
     onSuccess: (_, { action }) => {
       queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/contacts')
+      });
+      queryClient.refetchQueries({ 
         predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/contacts')
       });
       toast({
