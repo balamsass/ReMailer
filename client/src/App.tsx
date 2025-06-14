@@ -10,6 +10,7 @@ import Dashboard from "./pages/dashboard";
 import Campaigns from "./pages/campaigns";
 import EnhancedContacts from "./pages/enhanced-contacts";
 import Lists from "./pages/lists";
+import ListDetail from "./pages/list-detail";
 import Analytics from "./pages/analytics";
 import ApiTokens from "./pages/api-tokens";
 import Admin from "./pages/admin";
@@ -24,6 +25,7 @@ function AuthenticatedApp() {
         <Route path="/campaigns" component={Campaigns} />
         <Route path="/contacts" component={EnhancedContacts} />
         <Route path="/lists" component={Lists} />
+        <Route path="/lists/:id" component={ListDetail} />
         <Route path="/analytics" component={Analytics} />
         <Route path="/api-tokens" component={ApiTokens} />
         <Route path="/admin" component={Admin} />
