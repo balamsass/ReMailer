@@ -144,11 +144,15 @@ export default function Lists() {
     mutationFn: (filterDef: FilterGroup) => 
       apiRequest("POST", "/api/lists/preview", { filterDefinition: filterDef }),
     onSuccess: (data) => {
+      console.log("Preview success - data received:", data);
+      console.log("Contacts:", data.contacts);
+      console.log("Count:", data.count);
       setPreviewContacts(data.contacts || []);
       setPreviewCount(data.count || 0);
       setIsPreviewLoading(false);
     },
     onError: (error) => {
+      console.error("Preview error:", error);
       setPreviewContacts([]);
       setPreviewCount(0);
       setIsPreviewLoading(false);
