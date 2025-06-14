@@ -1,15 +1,82 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import CampaignForm from "@/components/campaigns/campaign-form";
 import EmailEditor from "@/components/campaigns/email-editor";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { insertCampaignSchema } from "@shared/schema";
 import { Save, Send } from "lucide-react";
 
 export default function Campaigns() {
   const [editorTab, setEditorTab] = useState<"visual" | "html" | "preview">("visual");
+  const [emailContent, setEmailContent] = useState("");
+  const { toast } = useToast();
   
   const { data: campaigns, isLoading } = useQuery({
     queryKey: ["/api/campaigns"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/campaigns");
+      return await response.json();
+    }
   });
+
+  const saveDraftMutation = useMutation({
+    mutationFn: async (campaignData: any) => {
+      const response = await apiRequest("POST", "/api/campaigns", {
+        ...campaignData,
+        content: emailContent,
+        status: "draft"
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      toast({
+        title: "Draft saved",
+        description: "Your campaign has been saved as a draft.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error saving draft",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const sendCampaignMutation = useMutation({
+    mutationFn: async (campaignData: any) => {
+      const response = await apiRequest("POST", "/api/campaigns", {
+        ...campaignData,
+        content: emailContent,
+        status: campaignData.schedule === "now" ? "sent" : "scheduled"
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      toast({
+        title: "Campaign sent",
+        description: "Your campaign has been sent successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error sending campaign",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleSaveDraft = (data: any) => {
+    saveDraftMutation.mutate(data);
+  };
+
+  const handleSendCampaign = (data: any) => {
+    sendCampaignMutation.mutate(data);
+  };
 
   return (
     <div>
@@ -20,16 +87,6 @@ export default function Campaigns() {
             <h2 className="text-2xl font-semibold text-slate-900">Campaign Builder</h2>
             <p className="text-slate-600 mt-1">Create and manage your email campaigns</p>
           </div>
-          <div className="flex space-x-3">
-            <button className="border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors flex items-center space-x-2">
-              <Save className="w-4 h-4" />
-              <span>Save Draft</span>
-            </button>
-            <button className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors flex items-center space-x-2">
-              <Send className="w-4 h-4" />
-              <span>Send Campaign</span>
-            </button>
-          </div>
         </div>
       </header>
 
@@ -38,7 +95,10 @@ export default function Campaigns() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Campaign Settings */}
             <div className="lg:col-span-1">
-              <CampaignForm />
+              <CampaignForm 
+                onSaveDraft={handleSaveDraft}
+                onSendCampaign={handleSendCampaign}
+              />
             </div>
 
             {/* Email Editor */}
@@ -46,6 +106,7 @@ export default function Campaigns() {
               <EmailEditor 
                 activeTab={editorTab}
                 onTabChange={setEditorTab}
+                onContentChange={setEmailContent}
               />
             </div>
           </div>

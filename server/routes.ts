@@ -168,17 +168,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/campaigns", requireSession, async (req, res) => {
     try {
+      const { contactList, schedule, scheduledDate, scheduledTime, content, ...campaignData } = req.body;
+      
+      // Create campaign with proper data structure
       const data = insertCampaignSchema.parse({
-        ...req.body,
+        ...campaignData,
         userId: req.user.id,
+        content: content || '',
+        status: schedule === "now" ? "sent" : schedule === "later" ? "scheduled" : "draft"
       });
       
       const campaign = await storage.createCampaign(data);
+      
+      // If sending immediately, process the campaign
+      if (schedule === "now" && contactList) {
+        await processCampaignSending(campaign.id, parseInt(contactList), req.user.id);
+      }
+      
       res.json(campaign);
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Failed to create campaign" });
     }
   });
+
+  // Helper function to process campaign sending
+  async function processCampaignSending(campaignId: number, listId: number, userId: number) {
+    try {
+      // Get contacts from the selected list
+      const listResult = await storage.executeListFilter(listId, userId);
+      const contacts = listResult.contacts;
+      
+      // Create campaign contact entries for tracking
+      for (const contact of contacts) {
+        await storage.createCampaignContact({
+          campaignId,
+          contactId: contact.id,
+          status: "pending"
+        });
+      }
+      
+      // Log the campaign send action
+      await storage.createAuditLog({
+        userId,
+        action: "campaign_sent",
+        resource: "campaign",
+        resourceId: campaignId.toString(),
+        details: { 
+          contactCount: contacts.length,
+          listId,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      console.log(`Campaign ${campaignId} processed for ${contacts.length} contacts`);
+    } catch (error) {
+      console.error(`Failed to process campaign ${campaignId}:`, error);
+    }
+  }
 
   app.get("/api/campaigns/:id", requireSession, async (req, res) => {
     try {

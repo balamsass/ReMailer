@@ -1,0 +1,95 @@
+✅ What’s Present in the UI (Visual Only)
+1. Campaign Settings Form
+
+Fields available:
+
+Campaign Name
+
+Subject Line
+
+From Name
+
+From Email
+
+Contact List dropdown (disabled/inactive currently)
+
+Schedule: Send Immediately or Schedule for Later
+
+2. Editor Tabs
+
+Visual Editor (WYSIWYG drag-and-drop interface)
+
+HTML Code (not shown in screenshot, assume intended)
+
+Preview (not shown, assume intended)
+
+3. Controls
+
+Save Draft (top-right)
+
+Send Campaign (top-right, likely inactive until fields are validated)
+
+❌ Missing or Disabled Functionality
+🔁 1. Contact List Integration
+Issue: Contact List dropdown is inactive (Select a contact list is not populated)
+
+Fix Needed: Backend integration to pull saved lists from the Lists module
+
+Recommendation: Allow selecting from static or dynamically filtered lists (see previous prompt on list filtering)
+
+📝 2. Save Draft
+Issue: No evidence it's persisting draft to backend (if button is just visual)
+
+Fix Needed: Enable Save Draft to:
+
+Persist all form values
+
+Save WYSIWYG content block layout
+
+Assign a draft status and timestamp
+
+🚀 3. Send Campaign Logic
+Issue: “Send Campaign” button might be inactive or not linked to backend logic
+
+Fix Needed:
+
+Validate all required fields
+
+Fetch contacts from selected list dynamically at time of sending
+
+Trigger delivery logic via email service API (SendGrid, SMTP, etc.)
+
+Mark campaign as “sent” with delivery status tracking
+
+🗓 4. Schedule Logic
+Issue: No UI shown to define send time when “Schedule for later” is selected
+
+Fix Needed: Show datetime picker and queue job for future execution
+
+🔧 Backend Actions Required
+Feature	Backend Tasks
+Contact List Dropdown	Endpoint to list available user-defined lists (filtered or static)
+Save Draft	API to POST/PUT /campaigns with status draft
+Send Campaign	API to trigger send logic using email microservice
+Schedule for Later	Add job to scheduler (e.g., cron job, task queue)
+List Filtering	Ensure dynamic filters resolve to contact IDs on send
+
+🧪 Recommended Dev Tasks
+ Enable dynamic list fetching in Campaign form
+
+ Activate Save Draft functionality with confirmation toast
+
+ Enable WYSIWYG content persistence and preview toggle
+
+ Activate campaign send logic with email service API integration
+
+ Build and connect scheduling logic (use node-cron, bull, or similar)
+
+✅ Next Step Option
+Would you like me to:
+
+Generate a Stage 4 PRD section to fully describe this Campaign Builder enhancement using CPDO
+
+Create a Replit-ready enhancement task set in markdown
+
+Build API endpoints and frontend wiring code for each function

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Plus, Image, Link, Code } from "lucide-react";
@@ -6,19 +6,45 @@ import { Plus, Image, Link, Code } from "lucide-react";
 interface EmailEditorProps {
   activeTab: "visual" | "html" | "preview";
   onTabChange: (tab: "visual" | "html" | "preview") => void;
+  onContentChange?: (content: string) => void;
 }
 
-export default function EmailEditor({ activeTab, onTabChange }: EmailEditorProps) {
+export default function EmailEditor({ activeTab, onTabChange, onContentChange }: EmailEditorProps) {
   const [htmlContent, setHtmlContent] = useState(`<!DOCTYPE html>
 <html>
 <head>
     <title>Your Email</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #007bff; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; }
+        .footer { background: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #666; }
+    </style>
 </head>
 <body>
-    <h1>Hello {{name}},</h1>
-    <p>Welcome to our newsletter!</p>
+    <div class="container">
+        <div class="header">
+            <h1>Welcome to ReMailer</h1>
+        </div>
+        <div class="content">
+            <h2>Hello {{name}},</h2>
+            <p>Thank you for subscribing to our newsletter! We're excited to share our latest updates with you.</p>
+            <p>Stay tuned for exclusive content, product announcements, and special offers.</p>
+        </div>
+        <div class="footer">
+            <p>You received this email because you subscribed to our newsletter.</p>
+            <p><a href="{{unsubscribe_url}}">Unsubscribe</a> | <a href="{{preferences_url}}">Update Preferences</a></p>
+        </div>
+    </div>
 </body>
 </html>`);
+
+  useEffect(() => {
+    if (onContentChange) {
+      onContentChange(htmlContent);
+    }
+  }, [htmlContent, onContentChange]);
 
   const tabs = [
     { id: "visual", label: "Visual Editor" },

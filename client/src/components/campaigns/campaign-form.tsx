@@ -2,11 +2,14 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { apiRequest } from "@/lib/queryClient";
+import { Calendar, Clock } from "lucide-react";
 
 const campaignSchema = z.object({
   name: z.string().min(1, "Campaign name is required"),
@@ -15,17 +18,37 @@ const campaignSchema = z.object({
   fromEmail: z.string().email("Valid email is required"),
   contactList: z.string().min(1, "Contact list is required"),
   schedule: z.enum(["now", "later"]),
+  scheduledDate: z.string().optional(),
+  scheduledTime: z.string().optional(),
 });
 
 type CampaignFormData = z.infer<typeof campaignSchema>;
 
-export default function CampaignForm() {
+interface CampaignFormProps {
+  onSaveDraft?: (data: CampaignFormData) => void;
+  onSendCampaign?: (data: CampaignFormData) => void;
+  defaultValues?: Partial<CampaignFormData>;
+}
+
+export default function CampaignForm({ onSaveDraft, onSendCampaign, defaultValues }: CampaignFormProps) {
+  const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
+
+  // Fetch available contact lists
+  const { data: listsData } = useQuery({
+    queryKey: ["/api/lists"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/lists");
+      return await response.json();
+    }
+  });
+
   const {
     register,
     handleSubmit,
     formState: { errors },
     setValue,
     watch,
+    getValues,
   } = useForm<CampaignFormData>({
     resolver: zodResolver(campaignSchema),
     defaultValues: {
@@ -35,12 +58,25 @@ export default function CampaignForm() {
       fromEmail: "team@remailer.app",
       contactList: "",
       schedule: "now",
+      scheduledDate: "",
+      scheduledTime: "",
+      ...defaultValues,
     },
   });
 
+  const schedule = watch("schedule");
+  
   const onSubmit = (data: CampaignFormData) => {
-    console.log("Campaign data:", data);
-    // Handle form submission here
+    if (onSendCampaign) {
+      onSendCampaign(data);
+    }
+  };
+
+  const handleSaveDraft = () => {
+    const data = getValues();
+    if (onSaveDraft) {
+      onSaveDraft(data);
+    }
   };
 
   return (
@@ -108,9 +144,16 @@ export default function CampaignForm() {
               <SelectValue placeholder="Select a contact list" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Subscribers (0)</SelectItem>
-              <SelectItem value="newsletter">Newsletter Subscribers (0)</SelectItem>
-              <SelectItem value="product">Product Users (0)</SelectItem>
+              {listsData?.lists?.map((list: any) => (
+                <SelectItem key={list.id} value={list.id.toString()}>
+                  {list.name} ({list.matchCount || 0} contacts)
+                </SelectItem>
+              ))}
+              {(!listsData?.lists || listsData.lists.length === 0) && (
+                <SelectItem value="" disabled>
+                  No contact lists available
+                </SelectItem>
+              )}
             </SelectContent>
           </Select>
           {errors.contactList && (
@@ -122,7 +165,10 @@ export default function CampaignForm() {
           <Label>Schedule</Label>
           <RadioGroup
             defaultValue="now"
-            onValueChange={(value) => setValue("schedule", value as "now" | "later")}
+            onValueChange={(value) => {
+              setValue("schedule", value as "now" | "later");
+              setIsScheduleExpanded(value === "later");
+            }}
             className="mt-2"
           >
             <div className="flex items-center space-x-2">
@@ -134,6 +180,55 @@ export default function CampaignForm() {
               <Label htmlFor="later" className="text-sm">Schedule for later</Label>
             </div>
           </RadioGroup>
+
+          {(schedule === "later" || isScheduleExpanded) && (
+            <div className="mt-3 space-y-3 p-3 bg-slate-50 rounded-lg border">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="scheduledDate" className="text-sm">Date</Label>
+                  <div className="relative">
+                    <Input
+                      id="scheduledDate"
+                      type="date"
+                      {...register("scheduledDate")}
+                      className="mt-1"
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                    <Calendar className="absolute right-3 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="scheduledTime" className="text-sm">Time</Label>
+                  <div className="relative">
+                    <Input
+                      id="scheduledTime"
+                      type="time"
+                      {...register("scheduledTime")}
+                      className="mt-1"
+                    />
+                    <Clock className="absolute right-3 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="pt-4 space-y-2">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={handleSaveDraft}
+            className="w-full"
+          >
+            Save Draft
+          </Button>
+          <Button 
+            type="submit" 
+            className="w-full"
+          >
+            Send Campaign
+          </Button>
         </div>
       </form>
     </div>
