@@ -131,7 +131,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(apiTokens)
       .where(and(eq(apiTokens.id, tokenId), eq(apiTokens.userId, userId)));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Contact operations
@@ -143,17 +143,19 @@ export class DatabaseStorage implements IStorage {
     const { page = 1, limit = 50, search, tags } = options;
     const offset = (page - 1) * limit;
 
-    let query = db.select().from(contacts).where(eq(contacts.userId, userId));
+    let whereConditions = [eq(contacts.userId, userId)];
 
     if (search) {
-      query = query.where(
+      whereConditions.push(
         sql`${contacts.email} ILIKE ${`%${search}%`} OR ${contacts.name} ILIKE ${`%${search}%`}`
       );
     }
 
     if (tags) {
-      query = query.where(sql`${tags} = ANY(${contacts.tags})`);
+      whereConditions.push(sql`${tags} = ANY(${contacts.tags})`);
     }
+
+    const query = db.select().from(contacts).where(and(...whereConditions));
 
     const contactsResult = await query
       .orderBy(desc(contacts.createdAt))
@@ -214,7 +216,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(contacts)
       .where(and(eq(contacts.id, contactId), eq(contacts.userId, userId)));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   async importContacts(userId: number, contactsData: any[]): Promise<{ successful: number; failed: number; errors: string[] }> {
@@ -317,7 +319,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(campaigns)
       .where(and(eq(campaigns.id, campaignId), eq(campaigns.userId, userId)));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Analytics operations
