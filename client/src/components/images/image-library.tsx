@@ -114,7 +114,7 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
 
   const deactivateImageMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest(`/api/images/${id}/deactivate`, "PATCH");
+      return await apiRequest("PATCH", `/api/images/${id}/deactivate`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/images"] });
