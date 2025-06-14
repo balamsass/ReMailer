@@ -424,6 +424,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/contacts/:id", requireSession, async (req, res) => {
+    try {
+      const data = insertContactSchema.partial().parse(req.body);
+      const contact = await storage.updateContact(parseInt(req.params.id), req.user.id, data);
+      if (!contact) {
+        return res.status(404).json({ error: "Contact not found" });
+      }
+      res.json(contact);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to update contact" });
+    }
+  });
+
   app.delete("/api/contacts/:id", requireSession, async (req, res) => {
     try {
       const success = await storage.deleteContact(parseInt(req.params.id), req.user.id);
