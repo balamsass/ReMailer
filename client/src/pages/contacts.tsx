@@ -62,7 +62,16 @@ export default function Contacts() {
       });
       return;
     }
-    addContactMutation.mutate(newContact);
+    
+    // Format data according to schema
+    const contactData = {
+      email: newContact.email,
+      name: newContact.name || null,
+      tags: newContact.tags ? newContact.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
+      metadata: newContact.phone ? { phone: newContact.phone } : {}
+    };
+    
+    addContactMutation.mutate(contactData);
   };
 
   return (
