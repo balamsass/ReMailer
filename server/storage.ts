@@ -1135,11 +1135,13 @@ export class DatabaseStorage implements IStorage {
     }
 
     if (tags) {
-      const tagArray = tags.split(',').map(tag => tag.trim());
-      whereClause = and(
-        whereClause,
-        sql`${images.tags} && ARRAY[${tagArray.map(tag => `'${tag}'`).join(',')}]::text[]`
-      );
+      const tagArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+      if (tagArray.length > 0) {
+        whereClause = and(
+          whereClause,
+          sql`${images.tags} && ${tagArray}`
+        );
+      }
     }
 
     const [totalResult] = await db
@@ -1199,11 +1201,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteImage(imageId: number, userId: number): Promise<boolean> {
-    const result = await db
-      .delete(images)
-      .where(and(eq(images.id, imageId), eq(images.userId, userId)));
+    try {
+      const result = await db
+        .delete(images)
+        .where(and(eq(images.id, imageId), eq(images.userId, userId)));
 
-    return result.rowCount > 0;
+      return result.rowCount !== null && result.rowCount > 0;
+    } catch (error) {
+      console.error('Delete image error:', error);
+      return false;
+    }
   }
 }
 

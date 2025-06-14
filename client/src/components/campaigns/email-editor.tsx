@@ -457,6 +457,7 @@ export default function EmailEditor({ activeTab, onTabChange, onContentChange }:
 function ComponentEditor({ component, onUpdate }: { component: EmailComponent; onUpdate: (content: any) => void }) {
   const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
   const [isButtonDialogOpen, setIsButtonDialogOpen] = useState(false);
+  const [isImageLibraryOpen, setIsImageLibraryOpen] = useState(false);
 
   if (component.type === 'text') {
     const content = component.content as TextComponent;
@@ -520,12 +521,22 @@ function ComponentEditor({ component, onUpdate }: { component: EmailComponent; o
       <div className="space-y-4">
         <div>
           <Label>Image URL</Label>
-          <Input
-            value={content.src}
-            onChange={(e) => onUpdate({ ...content, src: e.target.value })}
-            placeholder="https://example.com/image.jpg"
-            className="mt-2"
-          />
+          <div className="flex gap-2 mt-2">
+            <Input
+              value={content.src}
+              onChange={(e) => onUpdate({ ...content, src: e.target.value })}
+              placeholder="https://example.com/image.jpg"
+              className="flex-1"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsImageLibraryOpen(true)}
+            >
+              Library
+            </Button>
+          </div>
         </div>
         <div>
           <Label>Alt Text</Label>
