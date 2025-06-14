@@ -260,6 +260,7 @@ export const images = pgTable("images", {
   altText: text("alt_text"),
   tags: text("tags").array().default([]),
   description: text("description"),
+  status: text("status").notNull().default("active"), // active, inactive
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

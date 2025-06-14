@@ -149,14 +149,14 @@ export interface IStorage {
   }>;
 
   // Image operations
-  getImages(userId: number, options?: { page?: number; limit?: number; search?: string; tags?: string }): Promise<{
+  getImages(userId: number, options?: { page?: number; limit?: number; search?: string; tags?: string; includeInactive?: boolean }): Promise<{
     images: Image[];
     total: number;
   }>;
   getImage(imageId: number, userId: number): Promise<Image | undefined>;
   createImage(image: InsertImage): Promise<Image>;
   updateImage(imageId: number, userId: number, data: Partial<InsertImage>): Promise<Image | undefined>;
-  deleteImage(imageId: number, userId: number): Promise<boolean>;
+  deactivateImage(imageId: number, userId: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1127,14 +1127,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Image operations
-  async getImages(userId: number, options: { page?: number; limit?: number; search?: string; tags?: string } = {}): Promise<{
+  async getImages(userId: number, options: { page?: number; limit?: number; search?: string; tags?: string; includeInactive?: boolean } = {}): Promise<{
     images: Image[];
     total: number;
   }> {
-    const { page = 1, limit = 20, search, tags } = options;
+    const { page = 1, limit = 20, search, tags, includeInactive = false } = options;
     const offset = (page - 1) * limit;
 
-    let whereClause = eq(images.userId, userId);
+    let whereClause = and(
+      eq(images.userId, userId),
+      includeInactive ? undefined : eq(images.status, "active")
+    );
 
     if (search) {
       whereClause = and(
@@ -1209,15 +1212,20 @@ export class DatabaseStorage implements IStorage {
     return updated || undefined;
   }
 
-  async deleteImage(imageId: number, userId: number): Promise<boolean> {
+  async deactivateImage(imageId: number, userId: number): Promise<boolean> {
     try {
-      const result = await db
-        .delete(images)
-        .where(and(eq(images.id, imageId), eq(images.userId, userId)));
+      const [updated] = await db
+        .update(images)
+        .set({
+          status: "inactive",
+          updatedAt: new Date(),
+        })
+        .where(and(eq(images.id, imageId), eq(images.userId, userId)))
+        .returning();
 
-      return result.rowCount !== null && result.rowCount > 0;
+      return !!updated;
     } catch (error) {
-      console.error('Delete image error:', error);
+      console.error('Deactivate image error:', error);
       return false;
     }
   }

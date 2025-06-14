@@ -968,19 +968,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/images/:id", requireSession, async (req, res) => {
+  app.patch("/api/images/:id/deactivate", requireSession, async (req, res) => {
     try {
       const { id } = req.params;
       const userId = req.session.userId;
       
-      const deleted = await storage.deleteImage(parseInt(id), userId);
-      if (!deleted) {
+      const deactivated = await storage.deactivateImage(parseInt(id), userId);
+      if (!deactivated) {
         return res.status(404).json({ error: "Image not found" });
       }
       
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to delete image" });
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to deactivate image" });
     }
   });
 

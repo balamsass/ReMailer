@@ -112,21 +112,21 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
     },
   });
 
-  const deleteImageMutation = useMutation({
+  const deactivateImageMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest(`/api/images/${id}`, "DELETE");
+      return await apiRequest(`/api/images/${id}/deactivate`, "PATCH");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/images"] });
       toast({
         title: "Success",
-        description: "Image deleted successfully",
+        description: "Image marked as inactive",
       });
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete image",
+        description: error.message || "Failed to deactivate image",
         variant: "destructive",
       });
     },
