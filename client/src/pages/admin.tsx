@@ -14,7 +14,7 @@ import { apiRequest } from "@/lib/queryClient";
 export default function Admin() {
   const { toast } = useToast();
   const [selectedTab, setSelectedTab] = useState("users");
-  const [userFilters, setUserFilters] = useState({ search: "", role: "" });
+  const [userFilters, setUserFilters] = useState({ search: "", role: "all" });
   const [auditFilters, setAuditFilters] = useState({ 
     userId: "", 
     action: "", 
@@ -28,7 +28,7 @@ export default function Admin() {
     queryFn: () => {
       const params = new URLSearchParams();
       if (userFilters.search) params.append("search", userFilters.search);
-      if (userFilters.role) params.append("role", userFilters.role);
+      if (userFilters.role && userFilters.role !== "all") params.append("role", userFilters.role);
       return fetch(`/api/admin/users?${params}`).then(res => res.json());
     },
   });
@@ -46,23 +46,27 @@ export default function Admin() {
   });
 
   // Service health data
-  const { data: serviceHealth } = useQuery({
+  const { data: serviceHealth = [] } = useQuery({
     queryKey: ["/api/admin/health"],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // API usage data
-  const { data: apiUsage } = useQuery({
+  const { data: apiUsage = { totalRequests: 0, avgResponseTime: 0, errorRate: 0, topEndpoints: [] } } = useQuery({
     queryKey: ["/api/admin/api-usage"],
   });
 
   const updateUserRole = async (userId: number, role: string) => {
     try {
-      await apiRequest(`/api/admin/users/${userId}/role`, {
+      const response = await fetch(`/api/admin/users/${userId}/role`, {
         method: "PATCH",
         body: JSON.stringify({ role }),
         headers: { "Content-Type": "application/json" },
       });
+      
+      if (!response.ok) {
+        throw new Error("Failed to update user role");
+      }
       
       toast({
         title: "User role updated",
@@ -83,9 +87,13 @@ export default function Admin() {
     if (!confirm("Are you sure you want to delete this user?")) return;
     
     try {
-      await apiRequest(`/api/admin/users/${userId}`, {
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: "DELETE",
       });
+      
+      if (!response.ok) {
+        throw new Error("Failed to delete user");
+      }
       
       toast({
         title: "User deleted",
@@ -161,13 +169,13 @@ export default function Admin() {
                 />
                 <Select
                   value={userFilters.role}
-                  onValueChange={(value) => setUserFilters(prev => ({ ...prev, role: value }))}
+                  onValueChange={(value) => setUserFilters(prev => ({ ...prev, role: value === "all" ? "" : value }))}
                 >
                   <SelectTrigger className="max-w-[180px]">
                     <SelectValue placeholder="Filter by role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Roles</SelectItem>
+                    <SelectItem value="all">All Roles</SelectItem>
                     <SelectItem value="user">User</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
@@ -311,7 +319,7 @@ export default function Admin() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4">
-                {serviceHealth?.map((service: any) => (
+                {(serviceHealth as any[])?.map((service: any) => (
                   <div key={service.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
                       <h3 className="font-medium">{service.serviceName}</h3>
@@ -344,7 +352,7 @@ export default function Admin() {
                 <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{apiUsage?.totalRequests || 0}</div>
+                <div className="text-2xl font-bold">{(apiUsage as any)?.totalRequests || 0}</div>
               </CardContent>
             </Card>
             
