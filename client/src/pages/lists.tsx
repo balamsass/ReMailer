@@ -141,18 +141,16 @@ export default function Lists() {
 
   // Filter preview function
   const previewFilterMutation = useMutation({
-    mutationFn: (filterDef: FilterGroup) => 
-      apiRequest("POST", "/api/lists/preview", { filterDefinition: filterDef }),
+    mutationFn: async (filterDef: FilterGroup) => {
+      const response = await apiRequest("POST", "/api/lists/preview", { filterDefinition: filterDef });
+      return await response.json();
+    },
     onSuccess: (data) => {
-      console.log("Preview success - data received:", data);
-      console.log("Contacts:", data.contacts);
-      console.log("Count:", data.count);
       setPreviewContacts(data.contacts || []);
       setPreviewCount(data.count || 0);
       setIsPreviewLoading(false);
     },
     onError: (error) => {
-      console.error("Preview error:", error);
       setPreviewContacts([]);
       setPreviewCount(0);
       setIsPreviewLoading(false);
