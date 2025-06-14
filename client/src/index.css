@@ -90,7 +90,7 @@
   }
 
   .nav-item.active {
-    @apply bg-primary/10 text-primary;
+    @apply bg-primary bg-opacity-10 text-primary;
   }
 
   .nav-item:not(.active) {

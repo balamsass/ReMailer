@@ -5,6 +5,7 @@ import { insertUserSchema, insertContactSchema, insertCampaignSchema, insertApiT
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { z } from "zod";
+import "./types";
 
 // Auth middleware
 async function requireAuth(req: any, res: any, next: any) {
@@ -117,13 +118,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/auth/me", requireSession, (req, res) => {
-    const user = req.user;
-    res.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+    if (!req.user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    res.json({ user: { id: req.user.id, email: req.user.email, name: req.user.name, role: req.user.role } });
   });
 
   // Dashboard routes
   app.get("/api/dashboard/stats", requireSession, async (req, res) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
       const userId = req.user.id;
       
       const totalCampaigns = await storage.getCampaignCount(userId);
