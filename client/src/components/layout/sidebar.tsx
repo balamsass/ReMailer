@@ -45,11 +45,9 @@ export default function Sidebar() {
             const isActive = location === item.href || (item.href === "/dashboard" && location === "/");
             return (
               <li key={item.name}>
-                <Link href={item.href}>
-                  <a className={`nav-item ${isActive ? "active" : ""}`}>
-                    <item.icon className="w-4 h-4" />
-                    <span className="font-medium">{item.name}</span>
-                  </a>
+                <Link href={item.href} className={`nav-item ${isActive ? "active" : ""}`}>
+                  <item.icon className="w-4 h-4" />
+                  <span className="font-medium">{item.name}</span>
                 </Link>
               </li>
             );

@@ -90,7 +90,7 @@
   }
 
   .nav-item.active {
-    @apply bg-primary bg-opacity-10 text-primary;
+    @apply bg-blue-50 text-blue-600;
   }
 
   .nav-item:not(.active) {

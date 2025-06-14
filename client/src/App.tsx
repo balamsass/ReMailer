@@ -82,6 +82,19 @@ function LoginForm() {
             Sign In
           </button>
         </form>
+        
+        <div className="mt-4 pt-4 border-t border-slate-200">
+          <p className="text-xs text-slate-500 text-center mb-3">Demo Access</p>
+          <button 
+            onClick={() => login('admin@demo.com', 'demo123')}
+            className="w-full bg-slate-100 text-slate-700 py-2 px-4 rounded-lg font-medium hover:bg-slate-200 transition-colors text-sm"
+          >
+            Quick Demo Sign In
+          </button>
+          <p className="text-xs text-slate-400 text-center mt-2">
+            Email: admin@demo.com | Password: demo123
+          </p>
+        </div>
       </div>
     </div>
   );

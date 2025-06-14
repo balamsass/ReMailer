@@ -64,7 +64,7 @@ export default function Contacts() {
                   <SelectValue placeholder="All Tags" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Tags</SelectItem>
+                  <SelectItem value="all">All Tags</SelectItem>
                   <SelectItem value="newsletter">Newsletter</SelectItem>
                   <SelectItem value="product">Product Users</SelectItem>
                   <SelectItem value="vip">VIP</SelectItem>
