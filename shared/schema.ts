@@ -29,9 +29,12 @@ export const contacts = pgTable("contacts", {
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   email: text("email").notNull(),
   name: text("name"),
+  phone: text("phone"),
+  company: text("company"),
+  jobTitle: text("job_title"),
   tags: text("tags").array().default([]), // array of tag names
   status: text("status").notNull().default("active"), // active, unsubscribed, bounced
-  metadata: jsonb("metadata").default({}), // additional custom fields
+  notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

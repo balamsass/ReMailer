@@ -16,7 +16,15 @@ export default function Contacts() {
   const [selectedTags, setSelectedTags] = useState("all");
   const [showUpload, setShowUpload] = useState(false);
   const [showAddContact, setShowAddContact] = useState(false);
+  const [showEditContact, setShowEditContact] = useState(false);
+  const [editingContact, setEditingContact] = useState<any>(null);
   const [newContact, setNewContact] = useState({
+    email: "",
+    name: "",
+    phone: "",
+    tags: ""
+  });
+  const [editContact, setEditContact] = useState({
     email: "",
     name: "",
     phone: "",
@@ -52,6 +60,29 @@ export default function Contacts() {
     },
   });
 
+  const editContactMutation = useMutation({
+    mutationFn: async ({ id, contactData }: { id: number; contactData: any }) => {
+      await apiRequest("PUT", `/api/contacts/${id}`, contactData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Contact updated",
+        description: "Contact has been successfully updated",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+      setShowEditContact(false);
+      setEditingContact(null);
+      setEditContact({ email: "", name: "", phone: "", tags: "" });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update contact",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddContact = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newContact.email) {
@@ -72,6 +103,39 @@ export default function Contacts() {
     };
     
     addContactMutation.mutate(contactData);
+  };
+
+  const handleEditContact = (contact: any) => {
+    setEditingContact(contact);
+    setEditContact({
+      email: contact.email,
+      name: contact.name || "",
+      phone: contact.metadata?.phone || "",
+      tags: Array.isArray(contact.tags) ? contact.tags.join(", ") : ""
+    });
+    setShowEditContact(true);
+  };
+
+  const handleUpdateContact = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editContact.email) {
+      toast({
+        title: "Error",
+        description: "Email is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Format data according to schema
+    const contactData = {
+      email: editContact.email,
+      name: editContact.name || null,
+      tags: editContact.tags ? editContact.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
+      metadata: editContact.phone ? { phone: editContact.phone } : {}
+    };
+    
+    editContactMutation.mutate({ id: editingContact.id, contactData });
   };
 
   return (

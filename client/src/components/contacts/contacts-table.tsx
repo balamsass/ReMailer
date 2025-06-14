@@ -5,9 +5,10 @@ import type { Contact } from "@shared/schema";
 
 interface ContactsTableProps {
   contacts: Contact[];
+  onEditContact: (contact: Contact) => void;
 }
 
-export default function ContactsTable({ contacts }: ContactsTableProps) {
+export default function ContactsTable({ contacts, onEditContact }: ContactsTableProps) {
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       active: { variant: "default", label: "Active" },
@@ -139,7 +140,12 @@ export default function ContactsTable({ contacts }: ContactsTableProps) {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div className="flex space-x-2">
-                    <Button variant="link" size="sm" className="text-primary p-0 h-auto">
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      className="text-primary p-0 h-auto"
+                      onClick={() => onEditContact(contact)}
+                    >
                       Edit
                     </Button>
                     <Button variant="link" size="sm" className="text-slate-400 p-0 h-auto">
