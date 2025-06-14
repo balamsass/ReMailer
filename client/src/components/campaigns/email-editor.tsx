@@ -6,6 +6,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Plus, Image, Link, Code, Type, Square, Trash2, User, Hash } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import ImageLibrary from "@/components/images/image-library";
+import type { Image as ImageType } from "@shared/schema";
 
 interface EmailEditorProps {
   activeTab: "visual" | "html" | "preview";
@@ -571,6 +573,25 @@ function ComponentEditor({ component, onUpdate }: { component: EmailComponent; o
             ))}
           </div>
         </div>
+
+        {/* Image Library Dialog */}
+        <Dialog open={isImageLibraryOpen} onOpenChange={setIsImageLibraryOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle>Image Library</DialogTitle>
+            </DialogHeader>
+            <div className="overflow-y-auto max-h-[60vh]">
+              <ImageLibrary 
+                onImageSelect={(image: ImageType) => {
+                  onUpdate({ ...content, src: image.url, alt: image.altText || image.name });
+                  setIsImageLibraryOpen(false);
+                }}
+                showSelectButton={true}
+                className="border-0"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
