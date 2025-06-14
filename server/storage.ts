@@ -87,6 +87,7 @@ export interface IStorage {
   createCampaign(campaign: InsertCampaign): Promise<Campaign>;
   updateCampaign(campaignId: number, userId: number, data: Partial<InsertCampaign>): Promise<Campaign | undefined>;
   deleteCampaign(campaignId: number, userId: number): Promise<boolean>;
+  createCampaignContact(data: InsertCampaignContact): Promise<CampaignContact>;
 
   // Analytics operations
   getDashboardAnalytics(userId: number): Promise<{
@@ -696,6 +697,14 @@ export class DatabaseStorage implements IStorage {
       .delete(campaigns)
       .where(and(eq(campaigns.id, campaignId), eq(campaigns.userId, userId)));
     return (result.rowCount || 0) > 0;
+  }
+
+  async createCampaignContact(data: InsertCampaignContact): Promise<CampaignContact> {
+    const [campaignContact] = await db
+      .insert(campaignContacts)
+      .values(data)
+      .returning();
+    return campaignContact;
   }
 
   // Analytics operations
