@@ -320,6 +320,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/lists/:id", requireSession, async (req, res) => {
+    try {
+      const listId = parseInt(req.params.id);
+      const updateData = insertListSchema.partial().parse(req.body);
+      
+      const list = await storage.updateList(listId, req.user.id, updateData);
+      if (!list) {
+        return res.status(404).json({ error: "List not found" });
+      }
+      res.json(list);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to update list" });
+    }
+  });
+
   app.delete("/api/lists/:id", requireSession, async (req, res) => {
     try {
       const success = await storage.deleteList(parseInt(req.params.id), req.user.id);

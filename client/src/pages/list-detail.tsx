@@ -91,21 +91,26 @@ export default function ListDetail() {
 
   const updateListMutation = useMutation({
     mutationFn: async (data: ListFormData) => {
-      const response = await apiRequest("PATCH", `/api/lists/${listId}`, data);
-      return await response.json();
+      console.log('Updating list with data:', data);
+      const result = await apiRequest("PATCH", `/api/lists/${listId}`, data);
+      console.log('List update result:', result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (updatedList) => {
+      console.log('List update successful:', updatedList);
       queryClient.invalidateQueries({ queryKey: ["/api/lists"] });
       queryClient.invalidateQueries({ queryKey: ["/api/lists", listId] });
+      queryClient.refetchQueries({ queryKey: ["/api/lists", listId] });
       toast({
         title: "List updated",
         description: "The list has been successfully updated.",
       });
     },
     onError: (error) => {
+      console.error('List update error:', error);
       toast({
         title: "Error updating list",
-        description: error.message,
+        description: error.message || "Failed to update list",
         variant: "destructive",
       });
     },
