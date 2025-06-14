@@ -1,0 +1,103 @@
+
+# 🛠 Replit Prompt: Build ReMailer with Logging Requirements
+
+## 📁 Project Name:
+**ReMailer – Developer-First Email Campaign Tool**
+
+---
+
+## ✅ Objective
+Develop the ReMailer app using the specifications from `ReMailer_CPDO_Stage4.md`. Track all technical work in real-time with structured logs for implementation notes and changes.
+
+---
+
+## 🔍 Logging Requirements
+
+### 1. 📘 Implementation Log
+Maintain a file named `IMPLEMENTATION_LOG.md` at the root of the project to record:
+
+- Daily development activity
+- Design decisions
+- Tradeoffs or tech constraints
+- Any notes about assumptions or incomplete features
+
+#### Template:
+\`\`\`md
+# Implementation Log
+
+## [YYYY-MM-DD]
+
+### Tasks Completed
+- Built [component or feature]
+- Integrated [external system]
+
+### Key Decisions
+- Switched from [X] to [Y] due to [reason]
+
+### Open Questions / Notes
+- Need to confirm [requirement or behavior]
+\`\`\`
+
+---
+
+### 2. 📝 Change Log
+Maintain a file named `CHANGELOG.md` at the root of the project following semantic versioning (`v0.1.0`, `v0.2.0`, etc.):
+
+- List added, changed, fixed, or removed features
+- Group entries by version and date
+
+#### Template:
+\`\`\`md
+# Changelog
+
+## [v0.1.0] - 2025-06-14
+### Added
+- Initial Campaign Builder UI
+- REST API for sending emails
+
+### Changed
+- Updated database schema for contact tags
+
+### Fixed
+- Email preview bug in WYSIWYG
+
+### Removed
+- N/A
+\`\`\`
+
+---
+
+## 📁 Project Directory Structure
+
+\`\`\`
+/remailer/
+├── frontend/                # React + Tailwind
+├── backend/                 # Node.js (Express)
+├── db/                      # Supabase + schema.sql
+├── docs/                    # ReMailer_CPDO_Stage4.md
+├── IMPLEMENTATION_LOG.md    ✅ Daily dev notes
+├── CHANGELOG.md             ✅ Version tracking
+\`\`\`
+
+---
+
+## 🧱 Tech Stack
+
+| Layer        | Technology               |
+|--------------|--------------------------|
+| Frontend     | React + Tailwind CSS     |
+| Backend      | Node.js (Express)        |
+| Database     | PostgreSQL (Supabase)    |
+| Email Engine | Mailgun or Postmark      |
+| Auth         | Clerk.dev / Supabase Auth|
+| RBAC         | Supabase Policies        |
+| Deployment   | Replit + Railway         |
+| Monitoring   | LogRocket + Posthog      |
+
+---
+
+## 🚨 Replit Instructions
+
+- Begin every coding session by opening `IMPLEMENTATION_LOG.md` and starting a new dated entry.
+- For each PR or release milestone, update `CHANGELOG.md` with detailed notes.
+- These files will be reviewed before production deployment.
