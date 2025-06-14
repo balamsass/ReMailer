@@ -113,9 +113,13 @@ export default function EnhancedContacts() {
         ...data,
         tags: data.tags ? data.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
       };
-      return apiRequest('PATCH', `/api/contacts/${editingContact.id}`, contactData);
+      console.log('Updating contact with data:', contactData);
+      const result = await apiRequest('PATCH', `/api/contacts/${editingContact.id}`, contactData);
+      console.log('Update result:', result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (updatedContact) => {
+      console.log('Contact update successful:', updatedContact);
       queryClient.invalidateQueries({ 
         predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/contacts')
       });
@@ -131,9 +135,10 @@ export default function EnhancedContacts() {
       });
     },
     onError: (error) => {
+      console.error('Contact update error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to update contact",
         variant: "destructive",
       });
     },
@@ -163,9 +168,13 @@ export default function EnhancedContacts() {
 
   const changeStatusMutation = useMutation({
     mutationFn: async ({ contactId, status }: { contactId: number; status: string }) => {
-      return apiRequest('PATCH', `/api/contacts/${contactId}`, { status });
+      console.log('Updating contact status:', { contactId, status });
+      const result = await apiRequest('PATCH', `/api/contacts/${contactId}`, { status });
+      console.log('Contact update result:', result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (updatedContact) => {
+      console.log('Contact update successful:', updatedContact);
       queryClient.invalidateQueries({ 
         predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/contacts')
       });
@@ -174,13 +183,14 @@ export default function EnhancedContacts() {
       });
       toast({
         title: "Success",
-        description: "Contact status updated",
+        description: "Contact status updated successfully",
       });
     },
     onError: (error) => {
+      console.error('Contact update error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to update contact status",
         variant: "destructive",
       });
     },
