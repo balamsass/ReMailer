@@ -8,6 +8,7 @@ import { useAuth } from "./hooks/use-auth";
 import MainLayout from "./components/layout/main-layout";
 import Dashboard from "./pages/dashboard";
 import Campaigns from "./pages/campaigns";
+import CampaignsList from "./pages/campaigns-list";
 import EnhancedContacts from "./pages/enhanced-contacts";
 import Lists from "./pages/lists";
 import ListDetail from "./pages/list-detail";
@@ -24,6 +25,8 @@ function AuthenticatedApp() {
         <Route path="/" component={Dashboard} />
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/campaigns" component={Campaigns} />
+        <Route path="/campaigns-list" component={CampaignsList} />
+        <Route path="/campaigns/:id/edit" component={Campaigns} />
         <Route path="/contacts" component={EnhancedContacts} />
         <Route path="/lists" component={Lists} />
         <Route path="/lists/:id" component={ListDetail} />

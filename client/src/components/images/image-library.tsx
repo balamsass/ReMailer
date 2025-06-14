@@ -492,8 +492,9 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                        onClick={() => deleteImageMutation.mutate(image.id)}
+                        className="h-6 w-6 p-0 text-orange-500 hover:text-orange-700"
+                        onClick={() => deactivateImageMutation.mutate(image.id)}
+                        title="Mark as inactive (keeps image for existing campaigns)"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>

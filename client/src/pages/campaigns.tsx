@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useParams } from "wouter";
 import CampaignForm from "@/components/campaigns/campaign-form";
 import EmailEditor from "@/components/campaigns/email-editor";
 import { useToast } from "@/hooks/use-toast";
@@ -10,7 +11,10 @@ import { Save, Send } from "lucide-react";
 export default function Campaigns() {
   const [editorTab, setEditorTab] = useState<"visual" | "html" | "preview">("visual");
   const [emailContent, setEmailContent] = useState("");
+  const [currentCampaign, setCurrentCampaign] = useState<any>(null);
   const { toast } = useToast();
+  const params = useParams<{ id: string }>();
+  const campaignId = params.id;
   
   const { data: campaigns, isLoading } = useQuery({
     queryKey: ["/api/campaigns"],
@@ -19,6 +23,25 @@ export default function Campaigns() {
       return await response.json();
     }
   });
+
+  // Load existing campaign data when editing
+  const { data: campaignData } = useQuery({
+    queryKey: ["/api/campaigns", campaignId],
+    queryFn: async () => {
+      if (!campaignId) return null;
+      const response = await apiRequest("GET", `/api/campaigns/${campaignId}`);
+      return await response.json();
+    },
+    enabled: !!campaignId
+  });
+
+  // Update email content when campaign data loads
+  useEffect(() => {
+    if (campaignData) {
+      setCurrentCampaign(campaignData);
+      setEmailContent(campaignData.htmlContent || "");
+    }
+  }, [campaignData]);
 
   const saveDraftMutation = useMutation({
     mutationFn: async (campaignData: any) => {
