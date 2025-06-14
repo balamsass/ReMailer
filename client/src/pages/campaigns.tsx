@@ -45,23 +45,26 @@ export default function Campaigns() {
 
   const saveDraftMutation = useMutation({
     mutationFn: async (campaignData: any) => {
-      const response = await apiRequest("POST", "/api/campaigns", {
+      const method = campaignId ? "PATCH" : "POST";
+      const url = campaignId ? `/api/campaigns/${campaignId}` : "/api/campaigns";
+      
+      const response = await apiRequest(method, url, {
         ...campaignData,
-        content: emailContent,
-        schedule: "draft"
+        htmlContent: emailContent,
+        status: "draft"
       });
       return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
       toast({
-        title: "Draft saved",
-        description: "Your campaign has been saved as a draft.",
+        title: campaignId ? "Campaign updated" : "Draft saved",
+        description: campaignId ? "Your campaign has been updated." : "Your campaign has been saved as a draft.",
       });
     },
     onError: (error) => {
       toast({
-        title: "Error saving draft",
+        title: "Error saving campaign",
         description: error.message,
         variant: "destructive",
       });
