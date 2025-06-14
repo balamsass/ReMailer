@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertContactSchema, insertCampaignSchema, insertApiTokenSchema, insertListSchema, insertImageSchema } from "@shared/schema";
@@ -57,7 +58,41 @@ const registerSchema = z.object({
   password: z.string().min(6),
 });
 
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configure multer for file uploads
+const storage_multer = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage_multer,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Static file serving for uploaded images
+  app.use('/uploads', express.static(uploadsDir));
+
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
@@ -799,6 +834,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(image);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Failed to create image" });
+    }
+  });
+
+  // File upload endpoint
+  app.post("/api/images/upload", requireSession, upload.single('file'), async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      const { name, altText, description, tags } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ error: "Name is required" });
+      }
+      
+      // Generate URL for the uploaded file
+      const fileUrl = `/uploads/${req.file.filename}`;
+      
+      // Parse tags if provided
+      let parsedTags = [];
+      if (tags) {
+        try {
+          parsedTags = JSON.parse(tags);
+        } catch (e) {
+          parsedTags = [];
+        }
+      }
+      
+      const image = await storage.createImage({
+        userId,
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        name,
+        url: fileUrl,
+        altText: altText || "",
+        tags: parsedTags,
+        description: description || "",
+        mimeType: req.file.mimetype,
+        size: req.file.size,
+      });
+      
+      res.json(image);
+    } catch (error) {
+      // Clean up uploaded file if database operation fails
+      if (req.file) {
+        fs.unlink(req.file.path, () => {});
+      }
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to upload image" });
     }
   });
 
