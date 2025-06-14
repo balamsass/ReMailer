@@ -127,6 +127,7 @@ export default function Lists() {
         rules: [],
         groups: []
       });
+      createForm.reset();
       toast({ title: "List created successfully" });
     },
     onError: (error) => {
@@ -315,44 +316,43 @@ export default function Lists() {
     editForm.reset({
       name: list.name,
       description: list.description || "",
-      filterDefinition: list.filterDefinition,
-      tags: list.tags,
       status: list.status
     });
     setIsEditDialogOpen(true);
   };
 
-  const handleClone = (list: List) => {
-    const newName = `${list.name} (Copy)`;
-    cloneListMutation.mutate({ id: list.id, name: newName });
+  const handleDelete = (list: List) => {
+    if (confirm(`Are you sure you want to delete "${list.name}"?`)) {
+      deleteListMutation.mutate(list.id);
+    }
   };
 
-  const handleDelete = (list: List) => {
-    if (window.confirm(`Are you sure you want to delete "${list.name}"?`)) {
-      deleteListMutation.mutate(list.id);
+  const handleClone = (list: List) => {
+    const newName = prompt(`Enter name for cloned list:`, `${list.name} (Copy)`);
+    if (newName) {
+      cloneListMutation.mutate({ id: list.id, name: newName });
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'draft': return 'bg-yellow-100 text-yellow-800';
+      case 'archived': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const lists = listsData?.lists || [];
   const total = listsData?.total || 0;
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active": return "bg-green-100 text-green-800";
-      case "draft": return "bg-yellow-100 text-yellow-800";
-      case "archived": return "bg-gray-100 text-gray-800";
-      default: return "bg-blue-100 text-blue-800";
-    }
-  };
-
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Lists</h1>
-          <p className="text-muted-foreground">
-            Create and manage targeted contact lists with dynamic filtering
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">Lists</h1>
+          <p className="text-gray-600 mt-1">Create and manage targeted contact lists with dynamic filtering</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
@@ -361,87 +361,10 @@ export default function Lists() {
               Create List
             </Button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New List</DialogTitle>
-              <DialogDescription>
-                Start by giving your list a name and description. You can add filters later.
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...createForm}>
-              <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="space-y-4">
-                <FormField
-                  control={createForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>List Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Active Customers" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={createForm.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Brief description of this list..."
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={createForm.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="draft">Draft</SelectItem>
-                          <SelectItem value="archived">Archived</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex justify-end space-x-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setIsCreateDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={createListMutation.isPending}
-                  >
-                    {createListMutation.isPending ? "Creating..." : "Create List"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
         </Dialog>
       </div>
 
+      {/* Lists Overview */}
       <Card>
         <CardHeader>
           <CardTitle>All Lists ({total})</CardTitle>
@@ -587,6 +510,267 @@ export default function Lists() {
           )}
         </CardContent>
       </Card>
+
+      {/* Create Dialog with Filter Builder */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New List</DialogTitle>
+            <DialogDescription>
+              Define your list criteria using the filter builder below. Preview matching contacts in real-time.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Basic Info */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">List Details</h3>
+              <Form {...createForm}>
+                <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="space-y-4">
+                  <FormField
+                    control={createForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>List Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. Active Customers" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={createForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Brief description of this list..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={createForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="draft">Draft</SelectItem>
+                            <SelectItem value="archived">Archived</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Filter Builder */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-md font-semibold">Filter Criteria</h4>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addFilterRule()}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Rule
+                      </Button>
+                    </div>
+
+                    {filterDefinition.rules.length === 0 ? (
+                      <div className="text-center py-6 border-2 border-dashed border-gray-300 rounded-lg">
+                        <Filter className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-500 mb-2">No filter rules defined</p>
+                        <p className="text-sm text-gray-400">Click "Add Rule" to start filtering contacts</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {filterDefinition.rules.map((rule, index) => (
+                          <div key={rule.id} className="border rounded-lg p-3 bg-gray-50">
+                            <div className="flex items-center space-x-2">
+                              {index > 0 && (
+                                <div className="text-sm font-medium text-gray-600 px-2">
+                                  {filterDefinition.logic}
+                                </div>
+                              )}
+                              <Select
+                                value={rule.field}
+                                onValueChange={(value) => updateFilterRule(rule.id, 'field', value)}
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {FIELD_OPTIONS.map((field) => (
+                                    <SelectItem key={field.value} value={field.value}>
+                                      {field.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Select
+                                value={rule.operator}
+                                onValueChange={(value) => updateFilterRule(rule.id, 'operator', value)}
+                              >
+                                <SelectTrigger className="w-36">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {OPERATOR_OPTIONS.map((op) => (
+                                    <SelectItem key={op.value} value={op.value}>
+                                      {op.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {rule.field === 'status' ? (
+                                <Select
+                                  value={rule.value}
+                                  onValueChange={(value) => updateFilterRule(rule.id, 'value', value)}
+                                >
+                                  <SelectTrigger className="flex-1">
+                                    <SelectValue placeholder="Select status" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {STATUS_OPTIONS.map((status) => (
+                                      <SelectItem key={status.value} value={status.value}>
+                                        {status.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Input
+                                  placeholder={rule.field === 'tags' ? 'Enter tag name...' : 'Enter value...'}
+                                  value={rule.value}
+                                  onChange={(e) => updateFilterRule(rule.id, 'value', e.target.value)}
+                                  className="flex-1"
+                                />
+                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeFilterRule(rule.id)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end space-x-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => {
+                        setIsCreateDialogOpen(false);
+                        setFilterDefinition({
+                          id: 'root',
+                          logic: 'AND',
+                          rules: [],
+                          groups: []
+                        });
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      disabled={createListMutation.isPending}
+                    >
+                      {createListMutation.isPending ? "Creating..." : "Create List"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </div>
+
+            {/* Preview Panel */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Preview</h3>
+                <div className="text-sm text-gray-600">
+                  {previewCount > 0 ? `${previewCount} contacts match` : 'No matching contacts'}
+                </div>
+              </div>
+
+              {filterDefinition.rules.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-500">Add filter rules to preview results</p>
+                </div>
+              ) : isPreviewLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-gray-500 mt-2">Loading preview...</p>
+                </div>
+              ) : previewContacts.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-500">No contacts match your criteria</p>
+                  <p className="text-sm text-gray-400">Try adjusting your filter rules</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {previewContacts.slice(0, 10).map((contact) => (
+                    <div key={contact.id} className="flex items-center space-x-3 p-2 bg-white rounded border">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium text-blue-700">
+                          {contact.name?.charAt(0) || contact.email.charAt(0)}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {contact.name || contact.email}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {contact.email}
+                          {contact.company && ` • ${contact.company}`}
+                        </div>
+                      </div>
+                      {contact.tags && contact.tags.length > 0 && (
+                        <div className="flex gap-1">
+                          {contact.tags.slice(0, 2).map((tag, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                          {contact.tags.length > 2 && (
+                            <span className="text-xs text-gray-400">+{contact.tags.length - 2}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {previewContacts.length > 10 && (
+                    <div className="text-center text-sm text-gray-500 py-2">
+                      Showing 10 of {previewCount} matching contacts
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
