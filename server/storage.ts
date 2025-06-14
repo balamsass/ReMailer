@@ -1173,7 +1173,13 @@ export class DatabaseStorage implements IStorage {
   async createImage(image: InsertImage): Promise<Image> {
     const [newImage] = await db
       .insert(images)
-      .values(image)
+      .values({
+        ...image,
+        filename: image.name || 'unknown',
+        originalName: image.name || 'unknown',
+        mimeType: 'image/jpeg',
+        size: 0,
+      })
       .returning();
 
     return newImage;

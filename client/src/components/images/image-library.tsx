@@ -22,8 +22,8 @@ interface ImageLibraryProps {
 interface ImageFormData {
   name: string;
   url: string;
-  altText: string;
-  description: string;
+  altText?: string;
+  description?: string;
   tags: string[];
 }
 
@@ -44,16 +44,13 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: imagesData, isLoading } = useQuery({
+  const { data: imagesData, isLoading } = useQuery<{images: Image[], total: number}>({
     queryKey: ["/api/images", { search: searchTerm, tags: selectedTags.join(",") }],
   });
 
   const createImageMutation = useMutation({
     mutationFn: async (data: Omit<ImageFormData, "tags"> & { tags: string[] }) => {
-      return await apiRequest("/api/images", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return await apiRequest("/api/images", "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/images"] });
@@ -76,10 +73,7 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
   const updateImageMutation = useMutation({
     mutationFn: async (data: { id: number } & Partial<ImageFormData>) => {
       const { id, ...updateData } = data;
-      return await apiRequest(`/api/images/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(updateData),
-      });
+      return await apiRequest(`/api/images/${id}`, "PUT", updateData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/images"] });
@@ -101,9 +95,7 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
 
   const deleteImageMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest(`/api/images/${id}`, {
-        method: "DELETE",
-      });
+      return await apiRequest(`/api/images/${id}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/images"] });

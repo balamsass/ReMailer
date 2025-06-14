@@ -246,6 +246,7 @@ export const serviceHealth = pgTable("service_health", {
 export const images = pgTable("images", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
   filename: text("filename").notNull(),
   originalName: text("original_name").notNull(),
   mimeType: text("mime_type").notNull(),
@@ -253,6 +254,7 @@ export const images = pgTable("images", {
   width: integer("width"),
   height: integer("height"),
   url: text("url").notNull(), // stored file path or URL
+  altText: text("alt_text"),
   tags: text("tags").array().default([]),
   description: text("description"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
