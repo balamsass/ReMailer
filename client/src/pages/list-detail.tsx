@@ -65,6 +65,8 @@ export default function ListDetail() {
     enabled: !!listId,
   });
 
+  const contacts = contactsData?.contacts || [];
+
   const form = useForm<ListFormData>({
     resolver: zodResolver(listFormSchema),
     defaultValues: {
@@ -148,8 +150,6 @@ export default function ListDetail() {
     );
   }
 
-  const contacts = contactsData?.contacts || [];
-
   return (
     <div className="container mx-auto p-6">
       <div className="flex items-center gap-4 mb-6">
@@ -217,7 +217,7 @@ export default function ListDetail() {
                   </Badge>
                   <Badge variant="outline">
                     <Users className="h-3 w-3 mr-1" />
-                    {list.matchCount || 0} contacts
+                    {contacts.length} contacts
                   </Badge>
                 </div>
 
