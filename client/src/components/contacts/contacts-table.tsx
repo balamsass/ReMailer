@@ -130,6 +130,24 @@ export default function ContactsTable({ contacts, onEditContact }: ContactsTable
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
+                  <div>
+                    {contact.company && (
+                      <div className="text-sm font-medium text-slate-900">{contact.company}</div>
+                    )}
+                    {contact.jobTitle && (
+                      <div className="text-sm text-slate-500">{contact.jobTitle}</div>
+                    )}
+                    {!contact.company && !contact.jobTitle && (
+                      <div className="text-sm text-slate-400">-</div>
+                    )}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-slate-900">
+                    {contact.phone || <span className="text-slate-400">-</span>}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex flex-wrap gap-1">
                     {contact.tags?.map((tag) => (
                       <Badge key={tag} variant="secondary" className="text-xs">
