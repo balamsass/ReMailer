@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Image, Link, Code, Type, Square, Trash2 } from "lucide-react";
+import { Plus, Image, Link, Code, Type, Square, Trash2, User, Hash } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface EmailEditorProps {
   activeTab: "visual" | "html" | "preview";
@@ -208,41 +209,60 @@ export default function EmailEditor({ activeTab, onTabChange, onContentChange }:
         {activeTab === "visual" && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Toolbar */}
-            <div className="lg:col-span-1">
-              <h3 className="text-lg font-semibold mb-4">Add Components</h3>
-              <div className="space-y-2">
-                <Button 
-                  onClick={() => addComponent('text')}
-                  className="w-full justify-start"
-                  variant="outline"
-                >
-                  <Type className="w-4 h-4 mr-2" />
-                  Text Block
-                </Button>
-                <Button 
-                  onClick={() => addComponent('image')}
-                  className="w-full justify-start"
-                  variant="outline"
-                >
-                  <Image className="w-4 h-4 mr-2" />
-                  Image
-                </Button>
-                <Button 
-                  onClick={() => addComponent('button')}
-                  className="w-full justify-start"
-                  variant="outline"
-                >
-                  <Link className="w-4 h-4 mr-2" />
-                  Button
-                </Button>
-                <Button 
-                  onClick={() => addComponent('spacer')}
-                  className="w-full justify-start"
-                  variant="outline"
-                >
-                  <Square className="w-4 h-4 mr-2" />
-                  Spacer
-                </Button>
+            <div className="lg:col-span-1 space-y-6">
+              {/* Components Section */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Add Components</h3>
+                <div className="space-y-2">
+                  <Button 
+                    onClick={() => addComponent('text')}
+                    className="w-full justify-start"
+                    variant="outline"
+                  >
+                    <Type className="w-4 h-4 mr-2" />
+                    Text Block
+                  </Button>
+                  <Button 
+                    onClick={() => addComponent('image')}
+                    className="w-full justify-start"
+                    variant="outline"
+                  >
+                    <Image className="w-4 h-4 mr-2" />
+                    Image
+                  </Button>
+                  <Button 
+                    onClick={() => addComponent('button')}
+                    className="w-full justify-start"
+                    variant="outline"
+                  >
+                    <Link className="w-4 h-4 mr-2" />
+                    Button
+                  </Button>
+                  <Button 
+                    onClick={() => addComponent('spacer')}
+                    className="w-full justify-start"
+                    variant="outline"
+                  >
+                    <Square className="w-4 h-4 mr-2" />
+                    Spacer
+                  </Button>
+                </div>
+              </div>
+
+              {/* Variables Section */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Variables</h3>
+                <p className="text-sm text-gray-600 mb-3">Click to copy to clipboard</p>
+                <div className="space-y-2">
+                  <VariableButton variable="{{name}}" description="Contact's name" />
+                  <VariableButton variable="{{email}}" description="Contact's email" />
+                  <VariableButton variable="{{company}}" description="Contact's company" />
+                  <VariableButton variable="{{first_name}}" description="First name only" />
+                  <VariableButton variable="{{last_name}}" description="Last name only" />
+                  <VariableButton variable="{{unsubscribe_url}}" description="Unsubscribe link" />
+                  <VariableButton variable="{{preferences_url}}" description="Preferences link" />
+                  <VariableButton variable="{{campaign_name}}" description="Current campaign" />
+                </div>
               </div>
             </div>
 
@@ -612,4 +632,44 @@ function ComponentEditor({ component, onUpdate }: { component: EmailComponent; o
   }
 
   return null;
+}
+
+// Variable Button Component
+function VariableButton({ variable, description }: { variable: string; description: string }) {
+  const { toast } = useToast();
+  
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(variable);
+      toast({
+        title: "Variable copied!",
+        description: `${variable} copied to clipboard`,
+        duration: 2000,
+      });
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+      toast({
+        title: "Copy failed",
+        description: "Unable to copy to clipboard",
+        variant: "destructive",
+        duration: 2000,
+      });
+    }
+  };
+
+  return (
+    <Button
+      onClick={copyToClipboard}
+      variant="ghost"
+      className="w-full justify-start h-auto p-2 text-left hover:bg-blue-50"
+    >
+      <div className="flex items-start space-x-2">
+        <Hash className="w-4 h-4 mt-0.5 text-blue-600 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-mono text-blue-700 truncate">{variable}</div>
+          <div className="text-xs text-gray-500">{description}</div>
+        </div>
+      </div>
+    </Button>
+  );
 }
