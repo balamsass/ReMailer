@@ -315,6 +315,33 @@ export class DatabaseStorage implements IStorage {
     return { successful, failed, errors };
   }
 
+  async bulkUpdateContactStatus(contactIds: number[], userId: number, status: string): Promise<{ updated: number }> {
+    const result = await db
+      .update(contacts)
+      .set({ status })
+      .where(
+        and(
+          inArray(contacts.id, contactIds),
+          eq(contacts.userId, userId)
+        )
+      );
+    
+    return { updated: result.rowCount || 0 };
+  }
+
+  async bulkDeleteContacts(contactIds: number[], userId: number): Promise<{ deleted: number }> {
+    const result = await db
+      .delete(contacts)
+      .where(
+        and(
+          inArray(contacts.id, contactIds),
+          eq(contacts.userId, userId)
+        )
+      );
+    
+    return { deleted: result.rowCount || 0 };
+  }
+
   // Campaign operations
   async getCampaigns(userId: number): Promise<Campaign[]> {
     return await db

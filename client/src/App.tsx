@@ -8,7 +8,7 @@ import { useAuth } from "./hooks/use-auth";
 import MainLayout from "./components/layout/main-layout";
 import Dashboard from "./pages/dashboard";
 import Campaigns from "./pages/campaigns";
-import Contacts from "./pages/contacts";
+import EnhancedContacts from "./pages/enhanced-contacts";
 import Analytics from "./pages/analytics";
 import ApiTokens from "./pages/api-tokens";
 import Admin from "./pages/admin";
@@ -21,7 +21,7 @@ function AuthenticatedApp() {
         <Route path="/" component={Dashboard} />
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/campaigns" component={Campaigns} />
-        <Route path="/contacts" component={Contacts} />
+        <Route path="/contacts" component={EnhancedContacts} />
         <Route path="/analytics" component={Analytics} />
         <Route path="/api-tokens" component={ApiTokens} />
         <Route path="/admin" component={Admin} />
