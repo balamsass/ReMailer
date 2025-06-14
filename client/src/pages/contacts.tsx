@@ -22,13 +22,19 @@ export default function Contacts() {
     email: "",
     name: "",
     phone: "",
-    tags: ""
+    company: "",
+    jobTitle: "",
+    tags: "",
+    notes: ""
   });
   const [editContact, setEditContact] = useState({
     email: "",
     name: "",
     phone: "",
-    tags: ""
+    company: "",
+    jobTitle: "",
+    tags: "",
+    notes: ""
   });
 
   const { toast } = useToast();
@@ -49,7 +55,7 @@ export default function Contacts() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
       setShowAddContact(false);
-      setNewContact({ email: "", name: "", phone: "", tags: "" });
+      setNewContact({ email: "", name: "", phone: "", company: "", jobTitle: "", tags: "", notes: "" });
     },
     onError: () => {
       toast({
@@ -72,7 +78,7 @@ export default function Contacts() {
       queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
       setShowEditContact(false);
       setEditingContact(null);
-      setEditContact({ email: "", name: "", phone: "", tags: "" });
+      setEditContact({ email: "", name: "", phone: "", company: "", jobTitle: "", tags: "", notes: "" });
     },
     onError: () => {
       toast({
@@ -98,8 +104,11 @@ export default function Contacts() {
     const contactData = {
       email: newContact.email,
       name: newContact.name || null,
-      tags: newContact.tags ? newContact.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
-      metadata: newContact.phone ? { phone: newContact.phone } : {}
+      phone: newContact.phone || null,
+      company: newContact.company || null,
+      jobTitle: newContact.jobTitle || null,
+      notes: newContact.notes || null,
+      tags: newContact.tags ? newContact.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
     };
     
     addContactMutation.mutate(contactData);
@@ -110,7 +119,10 @@ export default function Contacts() {
     setEditContact({
       email: contact.email,
       name: contact.name || "",
-      phone: contact.metadata?.phone || "",
+      phone: contact.phone || "",
+      company: contact.company || "",
+      jobTitle: contact.jobTitle || "",
+      notes: contact.notes || "",
       tags: Array.isArray(contact.tags) ? contact.tags.join(", ") : ""
     });
     setShowEditContact(true);
@@ -131,8 +143,11 @@ export default function Contacts() {
     const contactData = {
       email: editContact.email,
       name: editContact.name || null,
-      tags: editContact.tags ? editContact.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
-      metadata: editContact.phone ? { phone: editContact.phone } : {}
+      phone: editContact.phone || null,
+      company: editContact.company || null,
+      jobTitle: editContact.jobTitle || null,
+      notes: editContact.notes || null,
+      tags: editContact.tags ? editContact.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
     };
     
     editContactMutation.mutate({ id: editingContact.id, contactData });
