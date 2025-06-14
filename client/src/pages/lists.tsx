@@ -144,10 +144,14 @@ export default function Lists() {
     mutationFn: (filterDef: FilterGroup) => 
       apiRequest("POST", "/api/lists/preview", { filterDefinition: filterDef }),
     onSuccess: (data) => {
-      setPreviewContacts(data.contacts);
-      setPreviewCount(data.count);
+      setPreviewContacts(data.contacts || []);
+      setPreviewCount(data.count || 0);
+      setIsPreviewLoading(false);
     },
     onError: (error) => {
+      setPreviewContacts([]);
+      setPreviewCount(0);
+      setIsPreviewLoading(false);
       toast({ 
         title: "Error previewing filter", 
         description: error.message, 
@@ -210,11 +214,11 @@ export default function Lists() {
     if (filterDefinition.rules.length === 0) {
       setPreviewContacts([]);
       setPreviewCount(0);
+      setIsPreviewLoading(false);
       return;
     }
     setIsPreviewLoading(true);
     previewFilterMutation.mutate(filterDefinition);
-    setIsPreviewLoading(false);
   };
 
   // Auto-preview when filter changes
@@ -722,7 +726,7 @@ export default function Lists() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                   <p className="text-gray-500 mt-2">Loading preview...</p>
                 </div>
-              ) : previewContacts.length === 0 ? (
+              ) : (!previewContacts || previewContacts.length === 0) ? (
                 <div className="text-center py-8">
                   <Users className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-500">No contacts match your criteria</p>
@@ -730,7 +734,7 @@ export default function Lists() {
                 </div>
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {previewContacts.slice(0, 10).map((contact) => (
+                  {(previewContacts || []).slice(0, 10).map((contact) => (
                     <div key={contact.id} className="flex items-center space-x-3 p-2 bg-white rounded border">
                       <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                         <span className="text-sm font-medium text-blue-700">
@@ -746,9 +750,9 @@ export default function Lists() {
                           {contact.company && ` • ${contact.company}`}
                         </div>
                       </div>
-                      {contact.tags && contact.tags.length > 0 && (
+                      {contact.tags && Array.isArray(contact.tags) && contact.tags.length > 0 && (
                         <div className="flex gap-1">
-                          {contact.tags.slice(0, 2).map((tag, index) => (
+                          {contact.tags.slice(0, 2).map((tag: string, index: number) => (
                             <Badge key={index} variant="secondary" className="text-xs">
                               {tag}
                             </Badge>
@@ -760,7 +764,7 @@ export default function Lists() {
                       )}
                     </div>
                   ))}
-                  {previewContacts.length > 10 && (
+                  {(previewContacts || []).length > 10 && (
                     <div className="text-center text-sm text-gray-500 py-2">
                       Showing 10 of {previewCount} matching contacts
                     </div>
