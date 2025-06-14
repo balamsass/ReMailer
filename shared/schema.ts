@@ -47,8 +47,8 @@ export const lists = pgTable("lists", {
   description: text("description"),
   filterDefinition: jsonb("filter_definition").notNull(), // JSON object containing filter logic
   tags: text("tags").array().default([]),
-  isActive: boolean("is_active").notNull().default(true),
-  lastMatchCount: integer("last_match_count").default(0),
+  status: text("status").notNull().default("active"), // active, draft, archived
+  matchCount: integer("match_count").default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
