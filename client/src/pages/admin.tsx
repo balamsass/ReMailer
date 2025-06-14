@@ -361,7 +361,7 @@ export default function Admin() {
                 <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{apiUsage?.avgResponseTime || 0}ms</div>
+                <div className="text-2xl font-bold">{(apiUsage as any)?.avgResponseTime || 0}ms</div>
               </CardContent>
             </Card>
             
@@ -370,7 +370,7 @@ export default function Admin() {
                 <CardTitle className="text-sm font-medium">Error Rate</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{apiUsage?.errorRate?.toFixed(2) || 0}%</div>
+                <div className="text-2xl font-bold">{((apiUsage as any)?.errorRate || 0).toFixed(2)}%</div>
               </CardContent>
             </Card>
             
@@ -379,7 +379,7 @@ export default function Admin() {
                 <CardTitle className="text-sm font-medium">Top Endpoints</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{apiUsage?.topEndpoints?.length || 0}</div>
+                <div className="text-2xl font-bold">{((apiUsage as any)?.topEndpoints || []).length}</div>
               </CardContent>
             </Card>
           </div>
@@ -402,7 +402,7 @@ export default function Admin() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {apiUsage?.topEndpoints?.map((endpoint: any, index: number) => (
+                  {((apiUsage as any)?.topEndpoints || []).map((endpoint: any, index: number) => (
                     <TableRow key={index}>
                       <TableCell className="font-mono text-sm">{endpoint.endpoint}</TableCell>
                       <TableCell>
