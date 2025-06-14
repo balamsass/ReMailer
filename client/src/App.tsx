@@ -27,6 +27,7 @@ function AuthenticatedApp() {
         <Route path="/contacts" component={EnhancedContacts} />
         <Route path="/lists" component={Lists} />
         <Route path="/lists/:id" component={ListDetail} />
+        <Route path="/images" component={Images} />
         <Route path="/analytics" component={Analytics} />
         <Route path="/api-tokens" component={ApiTokens} />
         <Route path="/admin" component={Admin} />
