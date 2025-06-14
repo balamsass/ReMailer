@@ -419,8 +419,19 @@ export class DatabaseStorage implements IStorage {
       .limit(limit)
       .offset(offset);
 
+    // Calculate actual contact counts for each list
+    const listsWithCounts = await Promise.all(
+      listResults.map(async (list) => {
+        const { contacts: listContacts } = await this.executeListFilter(list.id, userId);
+        return {
+          ...list,
+          matchCount: listContacts.length
+        };
+      })
+    );
+
     return {
-      lists: listResults,
+      lists: listsWithCounts,
       total: totalResult.count
     };
   }
