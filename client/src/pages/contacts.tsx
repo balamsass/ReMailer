@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -32,7 +32,7 @@ export default function Contacts() {
 
   const addContactMutation = useMutation({
     mutationFn: async (contactData: any) => {
-      await apiRequest("/api/contacts", "POST", contactData);
+      await apiRequest("POST", "/api/contacts", contactData);
     },
     onSuccess: () => {
       toast({
@@ -93,6 +93,9 @@ export default function Contacts() {
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                   <DialogTitle>Add New Contact</DialogTitle>
+                  <DialogDescription>
+                    Add a new contact to your mailing list. Email is required.
+                  </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleAddContact} className="space-y-4">
                   <div className="space-y-2">
