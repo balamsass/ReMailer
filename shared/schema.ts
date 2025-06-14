@@ -39,9 +39,23 @@ export const contacts = pgTable("contacts", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+export const lists = pgTable("lists", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  filterDefinition: jsonb("filter_definition").notNull(), // JSON object containing filter logic
+  tags: text("tags").array().default([]),
+  isActive: boolean("is_active").notNull().default(true),
+  lastMatchCount: integer("last_match_count").default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const campaigns = pgTable("campaigns", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  listId: integer("list_id").references(() => lists.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   subject: text("subject").notNull(),
   fromName: text("from_name").notNull(),
@@ -89,6 +103,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   apiTokens: many(apiTokens),
   contacts: many(contacts),
   campaigns: many(campaigns),
+  lists: many(lists),
 }));
 
 export const apiTokensRelations = relations(apiTokens, ({ one }) => ({
@@ -106,10 +121,22 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
   campaignContacts: many(campaignContacts),
 }));
 
+export const listsRelations = relations(lists, ({ one, many }) => ({
+  user: one(users, {
+    fields: [lists.userId],
+    references: [users.id],
+  }),
+  campaigns: many(campaigns),
+}));
+
 export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
   user: one(users, {
     fields: [campaigns.userId],
     references: [users.id],
+  }),
+  list: one(lists, {
+    fields: [campaigns.listId],
+    references: [lists.id],
   }),
   campaignContacts: many(campaignContacts),
   analytics: one(campaignAnalytics),
@@ -170,6 +197,13 @@ export const insertCampaignContactSchema = createInsertSchema(campaignContacts).
   unsubscribedAt: true,
 });
 
+export const insertListSchema = createInsertSchema(lists).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastMatchCount: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -182,6 +216,8 @@ export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
 export type CampaignContact = typeof campaignContacts.$inferSelect;
 export type InsertCampaignContact = z.infer<typeof insertCampaignContactSchema>;
 export type CampaignAnalytics = typeof campaignAnalytics.$inferSelect;
+export type List = typeof lists.$inferSelect;
+export type InsertList = z.infer<typeof insertListSchema>;
 
 // Admin Dashboard Tables
 export const auditLogs = pgTable("audit_logs", {
