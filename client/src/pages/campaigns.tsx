@@ -25,7 +25,7 @@ export default function Campaigns() {
       const response = await apiRequest("POST", "/api/campaigns", {
         ...campaignData,
         content: emailContent,
-        status: "draft"
+        schedule: "draft"
       });
       return await response.json();
     },

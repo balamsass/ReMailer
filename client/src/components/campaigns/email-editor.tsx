@@ -412,12 +412,24 @@ export default function EmailEditor({ activeTab, onTabChange, onContentChange }:
           <div className="relative">
             <Textarea
               value={htmlContent}
-              onChange={(e) => setHtmlContent(e.target.value)}
+              onChange={(e) => {
+                setHtmlContent(e.target.value);
+                if (onContentChange) {
+                  onContentChange(e.target.value);
+                }
+              }}
               className="w-full h-96 font-mono text-sm leading-relaxed resize-none"
               placeholder="Enter your HTML code here..."
             />
             <div className="absolute top-3 right-3">
-              <Button size="sm" variant="secondary">
+              <Button 
+                size="sm" 
+                variant="secondary"
+                onClick={() => {
+                  const formatted = htmlContent.replace(/></g, '>\n<');
+                  setHtmlContent(formatted);
+                }}
+              >
                 <Code className="w-4 h-4 mr-1" />
                 Format Code
               </Button>
@@ -428,24 +440,14 @@ export default function EmailEditor({ activeTab, onTabChange, onContentChange }:
         {/* Preview */}
         {activeTab === "preview" && (
           <div className="bg-slate-100 rounded-lg p-4">
-            <div className="bg-white rounded-lg shadow-sm border max-w-md mx-auto">
-              <div className="bg-primary text-white px-6 py-4 rounded-t-lg">
-                <h2 className="text-lg font-semibold">🚀 New features are here!</h2>
-              </div>
-              <div className="p-6">
-                <p className="text-slate-600 mb-4">Hi there,</p>
-                <p className="text-slate-600 mb-4">
-                  We're excited to announce some amazing new features that will help you create even better email campaigns.
-                </p>
-                <div className="text-center mb-4">
-                  <Button className="bg-primary text-white">
-                    Learn More
-                  </Button>
-                </div>
-                <p className="text-slate-500 text-sm">
-                  Thanks,<br />
-                  The ReMailer Team
-                </p>
+            <div className="bg-white rounded-lg shadow-sm border max-w-2xl mx-auto">
+              <div className="p-4">
+                <iframe
+                  srcDoc={htmlContent}
+                  className="w-full h-96 border-0 rounded"
+                  title="Email Preview"
+                  sandbox="allow-same-origin"
+                />
               </div>
             </div>
           </div>
