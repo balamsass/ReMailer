@@ -9,11 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export default function Contacts() {
   const [search, setSearch] = useState("");
-  const [selectedTags, setSelectedTags] = useState("");
+  const [selectedTags, setSelectedTags] = useState("all");
   const [showUpload, setShowUpload] = useState(false);
 
   const { data: contactsData, isLoading } = useQuery({
-    queryKey: ["/api/contacts", { search, tags: selectedTags }],
+    queryKey: ["/api/contacts", { search, tags: selectedTags === "all" ? "" : selectedTags }],
   });
 
   return (

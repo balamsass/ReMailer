@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, decimal, varchar, real } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -179,3 +179,61 @@ export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
 export type CampaignContact = typeof campaignContacts.$inferSelect;
 export type InsertCampaignContact = z.infer<typeof insertCampaignContactSchema>;
 export type CampaignAnalytics = typeof campaignAnalytics.$inferSelect;
+
+// Admin Dashboard Tables
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  action: varchar("action", { length: 100 }).notNull(),
+  resource: varchar("resource", { length: 100 }),
+  resourceId: varchar("resource_id", { length: 100 }),
+  details: jsonb("details"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const serviceHealth = pgTable("service_health", {
+  id: serial("id").primaryKey(),
+  serviceName: varchar("service_name", { length: 100 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull(), // ok, warning, error
+  responseTime: integer("response_time"), // in milliseconds
+  lastCheck: timestamp("last_check").defaultNow(),
+  details: jsonb("details"),
+  uptime: real("uptime").default(100), // percentage
+});
+
+export const apiKeyUsage = pgTable("api_key_usage", {
+  id: serial("id").primaryKey(),
+  apiTokenId: integer("api_token_id").references(() => apiTokens.id),
+  endpoint: varchar("endpoint", { length: 200 }).notNull(),
+  method: varchar("method", { length: 10 }).notNull(),
+  responseCode: integer("response_code"),
+  responseTime: integer("response_time"),
+  requestSize: integer("request_size"),
+  responseSize: integer("response_size"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Relations for new tables
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [auditLogs.userId],
+    references: [users.id],
+  }),
+}));
+
+export const apiKeyUsageRelations = relations(apiKeyUsage, ({ one }) => ({
+  apiToken: one(apiTokens, {
+    fields: [apiKeyUsage.apiTokenId],
+    references: [apiTokens.id],
+  }),
+}));
+
+// Types for new tables
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;
+export type ServiceHealth = typeof serviceHealth.$inferSelect;
+export type InsertServiceHealth = typeof serviceHealth.$inferInsert;
+export type ApiKeyUsage = typeof apiKeyUsage.$inferSelect;
+export type InsertApiKeyUsage = typeof apiKeyUsage.$inferInsert;
