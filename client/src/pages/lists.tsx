@@ -112,12 +112,17 @@ export default function Lists() {
 
   const { data: listsData, isLoading } = useQuery({
     queryKey: ["/api/lists", searchTerm, statusFilter],
-    queryFn: () => apiRequest("GET", `/api/lists?search=${encodeURIComponent(searchTerm)}&status=${statusFilter}`)
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/lists?search=${encodeURIComponent(searchTerm)}&status=${statusFilter}`);
+      return await response.json();
+    }
   });
 
   const createListMutation = useMutation({
-    mutationFn: (data: ListFormData & { filterDefinition: FilterGroup }) => 
-      apiRequest("POST", "/api/lists", data),
+    mutationFn: async (data: ListFormData & { filterDefinition: FilterGroup }) => {
+      const response = await apiRequest("POST", "/api/lists", data);
+      return await response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/lists"] });
       setIsCreateDialogOpen(false);
@@ -443,7 +448,7 @@ export default function Lists() {
                   <TableRow key={list.id}>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{list.name}</div>
+                        <div className="font-medium">{list.name || "Unnamed List"}</div>
                         {list.description && (
                           <div className="text-sm text-muted-foreground">
                             {list.description}
