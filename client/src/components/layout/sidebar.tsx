@@ -9,13 +9,15 @@ import {
   Code, 
   Settings,
   LogOut,
-  Shield
+  Shield,
+  List
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
   { name: "Campaigns", href: "/campaigns", icon: Send },
   { name: "Contacts", href: "/contacts", icon: Users },
+  { name: "Lists", href: "/lists", icon: List },
   { name: "Analytics", href: "/analytics", icon: ChartScatter },
   { name: "API Tokens", href: "/api-tokens", icon: Code },
 ];

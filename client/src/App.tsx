@@ -9,6 +9,7 @@ import MainLayout from "./components/layout/main-layout";
 import Dashboard from "./pages/dashboard";
 import Campaigns from "./pages/campaigns";
 import EnhancedContacts from "./pages/enhanced-contacts";
+import Lists from "./pages/lists";
 import Analytics from "./pages/analytics";
 import ApiTokens from "./pages/api-tokens";
 import Admin from "./pages/admin";
@@ -22,6 +23,7 @@ function AuthenticatedApp() {
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/campaigns" component={Campaigns} />
         <Route path="/contacts" component={EnhancedContacts} />
+        <Route path="/lists" component={Lists} />
         <Route path="/analytics" component={Analytics} />
         <Route path="/api-tokens" component={ApiTokens} />
         <Route path="/admin" component={Admin} />
