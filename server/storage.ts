@@ -5,6 +5,9 @@ import {
   campaigns, 
   campaignContacts, 
   campaignAnalytics,
+  auditLogs,
+  serviceHealth,
+  apiKeyUsage,
   type User, 
   type InsertUser, 
   type ApiToken, 
@@ -15,7 +18,13 @@ import {
   type InsertCampaign,
   type CampaignContact,
   type InsertCampaignContact,
-  type CampaignAnalytics
+  type CampaignAnalytics,
+  type AuditLog,
+  type InsertAuditLog,
+  type ServiceHealth,
+  type InsertServiceHealth,
+  type ApiKeyUsage,
+  type InsertApiKeyUsage
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, like, sql, desc, count, inArray } from "drizzle-orm";
@@ -73,6 +82,41 @@ export interface IStorage {
     topCampaigns: any[];
   }>;
   getCampaignAnalytics(campaignId: number, userId: number): Promise<CampaignAnalytics | undefined>;
+
+  // Admin operations
+  getAllUsers(options?: { page?: number; limit?: number; search?: string; role?: string }): Promise<{
+    users: User[];
+    total: number;
+  }>;
+  updateUserRole(userId: number, role: string): Promise<User | undefined>;
+  deleteUser(userId: number): Promise<boolean>;
+
+  // Audit logging
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(options?: { 
+    page?: number; 
+    limit?: number; 
+    userId?: number; 
+    action?: string; 
+    startDate?: Date; 
+    endDate?: Date 
+  }): Promise<{
+    logs: (AuditLog & { user?: User })[];
+    total: number;
+  }>;
+
+  // Service health monitoring
+  updateServiceHealth(serviceName: string, status: string, responseTime?: number, details?: any): Promise<ServiceHealth>;
+  getServiceHealth(): Promise<ServiceHealth[]>;
+  
+  // API usage tracking
+  trackApiUsage(usage: InsertApiKeyUsage): Promise<ApiKeyUsage>;
+  getApiUsageStats(tokenId?: number): Promise<{
+    totalRequests: number;
+    avgResponseTime: number;
+    errorRate: number;
+    topEndpoints: any[];
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -479,6 +523,233 @@ export class DatabaseStorage implements IStorage {
       .where(eq(campaignAnalytics.campaignId, campaignId));
 
     return analytics || undefined;
+  }
+
+  // Admin operations
+  async getAllUsers(options: { page?: number; limit?: number; search?: string; role?: string } = {}): Promise<{
+    users: User[];
+    total: number;
+  }> {
+    const { page = 1, limit = 10, search, role } = options;
+    const offset = (page - 1) * limit;
+
+    let whereConditions = [];
+    
+    if (search) {
+      whereConditions.push(
+        sql`${users.name} ILIKE ${'%' + search + '%'} OR ${users.email} ILIKE ${'%' + search + '%'}`
+      );
+    }
+    
+    if (role) {
+      whereConditions.push(eq(users.role, role));
+    }
+
+    const whereClause = whereConditions.length > 0 
+      ? and(...whereConditions)
+      : undefined;
+
+    const [totalResult] = await db
+      .select({ count: count() })
+      .from(users)
+      .where(whereClause);
+
+    const userResults = await db
+      .select()
+      .from(users)
+      .where(whereClause)
+      .orderBy(desc(users.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return {
+      users: userResults,
+      total: totalResult.count,
+    };
+  }
+
+  async updateUserRole(userId: number, role: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ role, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+
+    return user;
+  }
+
+  async deleteUser(userId: number): Promise<boolean> {
+    const result = await db
+      .delete(users)
+      .where(eq(users.id, userId));
+
+    return result.rowCount > 0;
+  }
+
+  // Audit logging
+  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const [auditLog] = await db
+      .insert(auditLogs)
+      .values(log)
+      .returning();
+
+    return auditLog;
+  }
+
+  async getAuditLogs(options: { 
+    page?: number; 
+    limit?: number; 
+    userId?: number; 
+    action?: string; 
+    startDate?: Date; 
+    endDate?: Date 
+  } = {}): Promise<{
+    logs: (AuditLog & { user?: User })[];
+    total: number;
+  }> {
+    const { page = 1, limit = 50, userId, action, startDate, endDate } = options;
+    const offset = (page - 1) * limit;
+
+    let whereConditions = [];
+    
+    if (userId) {
+      whereConditions.push(eq(auditLogs.userId, userId));
+    }
+    
+    if (action) {
+      whereConditions.push(eq(auditLogs.action, action));
+    }
+    
+    if (startDate) {
+      whereConditions.push(sql`${auditLogs.createdAt} >= ${startDate}`);
+    }
+    
+    if (endDate) {
+      whereConditions.push(sql`${auditLogs.createdAt} <= ${endDate}`);
+    }
+
+    const whereClause = whereConditions.length > 0 
+      ? and(...whereConditions)
+      : undefined;
+
+    const [totalResult] = await db
+      .select({ count: count() })
+      .from(auditLogs)
+      .where(whereClause);
+
+    const logsWithUsers = await db
+      .select({
+        log: auditLogs,
+        user: users,
+      })
+      .from(auditLogs)
+      .leftJoin(users, eq(auditLogs.userId, users.id))
+      .where(whereClause)
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return {
+      logs: logsWithUsers.map(row => ({ ...row.log, user: row.user || undefined })),
+      total: totalResult.count,
+    };
+  }
+
+  // Service health monitoring
+  async updateServiceHealth(serviceName: string, status: string, responseTime?: number, details?: any): Promise<ServiceHealth> {
+    const [existingService] = await db
+      .select()
+      .from(serviceHealth)
+      .where(eq(serviceHealth.serviceName, serviceName));
+
+    if (existingService) {
+      const [updated] = await db
+        .update(serviceHealth)
+        .set({
+          status,
+          responseTime,
+          details,
+          lastCheck: new Date(),
+        })
+        .where(eq(serviceHealth.serviceName, serviceName))
+        .returning();
+
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(serviceHealth)
+        .values({
+          serviceName,
+          status,
+          responseTime,
+          details,
+        })
+        .returning();
+
+      return created;
+    }
+  }
+
+  async getServiceHealth(): Promise<ServiceHealth[]> {
+    return await db
+      .select()
+      .from(serviceHealth)
+      .orderBy(serviceHealth.serviceName);
+  }
+  
+  // API usage tracking
+  async trackApiUsage(usage: InsertApiKeyUsage): Promise<ApiKeyUsage> {
+    const [created] = await db
+      .insert(apiKeyUsage)
+      .values(usage)
+      .returning();
+
+    return created;
+  }
+
+  async getApiUsageStats(tokenId?: number): Promise<{
+    totalRequests: number;
+    avgResponseTime: number;
+    errorRate: number;
+    topEndpoints: any[];
+  }> {
+    let whereCondition = undefined;
+    if (tokenId) {
+      whereCondition = eq(apiKeyUsage.apiTokenId, tokenId);
+    }
+
+    const [stats] = await db
+      .select({
+        totalRequests: count(),
+        avgResponseTime: sql<number>`AVG(${apiKeyUsage.responseTime})`,
+        errorCount: sql<number>`SUM(CASE WHEN ${apiKeyUsage.responseCode} >= 400 THEN 1 ELSE 0 END)`,
+      })
+      .from(apiKeyUsage)
+      .where(whereCondition);
+
+    const topEndpoints = await db
+      .select({
+        endpoint: apiKeyUsage.endpoint,
+        method: apiKeyUsage.method,
+        requests: count(),
+        avgResponseTime: sql<number>`AVG(${apiKeyUsage.responseTime})`,
+      })
+      .from(apiKeyUsage)
+      .where(whereCondition)
+      .groupBy(apiKeyUsage.endpoint, apiKeyUsage.method)
+      .orderBy(desc(count()))
+      .limit(10);
+
+    const errorRate = stats.totalRequests > 0 
+      ? (Number(stats.errorCount) / stats.totalRequests) * 100 
+      : 0;
+
+    return {
+      totalRequests: stats.totalRequests,
+      avgResponseTime: Number(stats.avgResponseTime) || 0,
+      errorRate,
+      topEndpoints,
+    };
   }
 }
 

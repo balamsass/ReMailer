@@ -184,30 +184,30 @@ export type CampaignAnalytics = typeof campaignAnalytics.$inferSelect;
 export const auditLogs = pgTable("audit_logs", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
-  action: varchar("action", { length: 100 }).notNull(),
-  resource: varchar("resource", { length: 100 }),
-  resourceId: varchar("resource_id", { length: 100 }),
+  action: text("action").notNull(),
+  resource: text("resource"),
+  resourceId: text("resource_id"),
   details: jsonb("details"),
-  ipAddress: varchar("ip_address", { length: 45 }),
+  ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const serviceHealth = pgTable("service_health", {
   id: serial("id").primaryKey(),
-  serviceName: varchar("service_name", { length: 100 }).notNull(),
-  status: varchar("status", { length: 20 }).notNull(), // ok, warning, error
+  serviceName: text("service_name").notNull(),
+  status: text("status").notNull(), // ok, warning, error
   responseTime: integer("response_time"), // in milliseconds
   lastCheck: timestamp("last_check").defaultNow(),
   details: jsonb("details"),
-  uptime: real("uptime").default(100), // percentage
+  uptime: decimal("uptime", { precision: 5, scale: 2 }).default("100"), // percentage
 });
 
 export const apiKeyUsage = pgTable("api_key_usage", {
   id: serial("id").primaryKey(),
   apiTokenId: integer("api_token_id").references(() => apiTokens.id),
-  endpoint: varchar("endpoint", { length: 200 }).notNull(),
-  method: varchar("method", { length: 10 }).notNull(),
+  endpoint: text("endpoint").notNull(),
+  method: text("method").notNull(),
   responseCode: integer("response_code"),
   responseTime: integer("response_time"),
   requestSize: integer("request_size"),
