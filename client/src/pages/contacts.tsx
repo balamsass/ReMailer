@@ -1,20 +1,69 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ContactsTable from "@/components/contacts/contacts-table";
 import ContactUpload from "@/components/contacts/contact-upload";
 import { Upload, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Contacts() {
   const [search, setSearch] = useState("");
   const [selectedTags, setSelectedTags] = useState("all");
   const [showUpload, setShowUpload] = useState(false);
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [newContact, setNewContact] = useState({
+    email: "",
+    name: "",
+    phone: "",
+    tags: ""
+  });
+
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: contactsData, isLoading } = useQuery({
     queryKey: ["/api/contacts", { search, tags: selectedTags === "all" ? "" : selectedTags }],
   });
+
+  const addContactMutation = useMutation({
+    mutationFn: async (contactData: any) => {
+      await apiRequest("/api/contacts", "POST", contactData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Contact added",
+        description: "Contact has been successfully added",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+      setShowAddContact(false);
+      setNewContact({ email: "", name: "", phone: "", tags: "" });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add contact",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAddContact = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newContact.email) {
+      toast({
+        title: "Error",
+        description: "Email is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    addContactMutation.mutate(newContact);
+  };
 
   return (
     <div>
@@ -34,10 +83,70 @@ export default function Contacts() {
               <Upload className="w-4 h-4" />
               <span>Import CSV</span>
             </Button>
-            <Button className="flex items-center space-x-2">
-              <Plus className="w-4 h-4" />
-              <span>Add Contact</span>
-            </Button>
+            <Dialog open={showAddContact} onOpenChange={setShowAddContact}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center space-x-2">
+                  <Plus className="w-4 h-4" />
+                  <span>Add Contact</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Add New Contact</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleAddContact} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="contact@example.com"
+                      value={newContact.email}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, email: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name</Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="John Doe"
+                      value={newContact.name}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, name: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="+1 (555) 123-4567"
+                      value={newContact.phone}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, phone: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tags">Tags</Label>
+                    <Input
+                      id="tags"
+                      type="text"
+                      placeholder="newsletter, vip, customer"
+                      value={newContact.tags}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, tags: e.target.value }))}
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2 pt-4">
+                    <Button type="button" variant="outline" onClick={() => setShowAddContact(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={addContactMutation.isPending}>
+                      {addContactMutation.isPending ? "Adding..." : "Add Contact"}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </header>
