@@ -84,7 +84,9 @@ export default function EnhancedContacts() {
       return apiRequest('POST', '/api/contacts', contactData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/contacts')
+      });
       setIsAddOpen(false);
       form.reset();
       toast({
@@ -111,7 +113,9 @@ export default function EnhancedContacts() {
       return apiRequest('PATCH', `/api/contacts/${editingContact.id}`, contactData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/contacts')
+      });
       setEditingContact(null);
       setIsAddOpen(false);
       form.reset();
@@ -134,7 +138,9 @@ export default function EnhancedContacts() {
       return apiRequest('DELETE', `/api/contacts/${contactId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/contacts')
+      });
       toast({
         title: "Success",
         description: "Contact deleted successfully",
@@ -154,7 +160,9 @@ export default function EnhancedContacts() {
       return apiRequest('PATCH', `/api/contacts/${contactId}`, { status });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/contacts')
+      });
       toast({
         title: "Success",
         description: "Contact status updated",
@@ -181,7 +189,9 @@ export default function EnhancedContacts() {
       }
     },
     onSuccess: (_, { action }) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().startsWith('/api/contacts')
+      });
       toast({
         title: "Success",
         description: action === 'delete' 
