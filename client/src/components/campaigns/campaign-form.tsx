@@ -144,13 +144,14 @@ export default function CampaignForm({ onSaveDraft, onSendCampaign, defaultValue
               <SelectValue placeholder="Select a contact list" />
             </SelectTrigger>
             <SelectContent>
-              {listsData?.lists?.map((list: any) => (
-                <SelectItem key={list.id} value={list.id.toString()}>
-                  {list.name} ({list.matchCount || 0} contacts)
-                </SelectItem>
-              ))}
-              {(!listsData?.lists || listsData.lists.length === 0) && (
-                <SelectItem value="" disabled>
+              {listsData?.lists && listsData.lists.length > 0 ? (
+                listsData.lists.map((list: any) => (
+                  <SelectItem key={list.id} value={list.id.toString()}>
+                    {list.name} ({list.matchCount || 0} contacts)
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="no-lists" disabled>
                   No contact lists available
                 </SelectItem>
               )}
