@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertListSchema } from "@shared/schema";
@@ -25,7 +26,9 @@ import {
   Trash2,
   Users,
   Calendar,
-  Settings
+  Settings,
+  X,
+  ChevronDown
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
@@ -46,12 +49,65 @@ interface List {
   updatedAt: string;
 }
 
+// Filter types and interfaces
+interface FilterRule {
+  id: string;
+  field: string;
+  operator: string;
+  value: string;
+}
+
+interface FilterGroup {
+  id: string;
+  logic: 'AND' | 'OR';
+  rules: FilterRule[];
+  groups: FilterGroup[];
+}
+
+const FIELD_OPTIONS = [
+  { value: 'email', label: 'Email' },
+  { value: 'name', label: 'Name' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'company', label: 'Company' },
+  { value: 'jobTitle', label: 'Job Title' },
+  { value: 'tags', label: 'Tags' },
+  { value: 'status', label: 'Status' },
+  { value: 'notes', label: 'Notes' }
+];
+
+const OPERATOR_OPTIONS = [
+  { value: 'equals', label: 'Equals' },
+  { value: 'notEquals', label: 'Not Equals' },
+  { value: 'contains', label: 'Contains' },
+  { value: 'notContains', label: 'Does Not Contain' },
+  { value: 'startsWith', label: 'Starts With' },
+  { value: 'endsWith', label: 'Ends With' },
+  { value: 'isEmpty', label: 'Is Empty' },
+  { value: 'isNotEmpty', label: 'Is Not Empty' }
+];
+
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+  { value: 'bounced', label: 'Bounced' },
+  { value: 'unsubscribed', label: 'Unsubscribed' }
+];
+
 export default function Lists() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedList, setSelectedList] = useState<List | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [filterDefinition, setFilterDefinition] = useState<FilterGroup>({
+    id: 'root',
+    logic: 'AND',
+    rules: [],
+    groups: []
+  });
+  const [previewContacts, setPreviewContacts] = useState<any[]>([]);
+  const [previewCount, setPreviewCount] = useState(0);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const { toast } = useToast();
 
   const { data: listsData, isLoading } = useQuery({
@@ -60,10 +116,17 @@ export default function Lists() {
   });
 
   const createListMutation = useMutation({
-    mutationFn: (data: ListFormData) => apiRequest("POST", "/api/lists", data),
+    mutationFn: (data: ListFormData & { filterDefinition: FilterGroup }) => 
+      apiRequest("POST", "/api/lists", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/lists"] });
       setIsCreateDialogOpen(false);
+      setFilterDefinition({
+        id: 'root',
+        logic: 'AND',
+        rules: [],
+        groups: []
+      });
       toast({ title: "List created successfully" });
     },
     onError: (error) => {
@@ -74,6 +137,94 @@ export default function Lists() {
       });
     }
   });
+
+  // Filter preview function
+  const previewFilterMutation = useMutation({
+    mutationFn: (filterDef: FilterGroup) => 
+      apiRequest("POST", "/api/lists/preview", { filterDefinition: filterDef }),
+    onSuccess: (data) => {
+      setPreviewContacts(data.contacts);
+      setPreviewCount(data.count);
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Error previewing filter", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    }
+  });
+
+  // Generate unique ID for filter rules/groups
+  const generateId = () => Math.random().toString(36).substr(2, 9);
+
+  // Add new filter rule
+  const addFilterRule = (groupId: string = 'root') => {
+    const newRule: FilterRule = {
+      id: generateId(),
+      field: 'email',
+      operator: 'contains',
+      value: ''
+    };
+
+    const updateGroup = (group: FilterGroup): FilterGroup => {
+      if (group.id === groupId) {
+        return { ...group, rules: [...group.rules, newRule] };
+      }
+      return {
+        ...group,
+        groups: group.groups.map(updateGroup)
+      };
+    };
+
+    setFilterDefinition(prev => updateGroup(prev));
+  };
+
+  // Remove filter rule
+  const removeFilterRule = (ruleId: string) => {
+    const updateGroup = (group: FilterGroup): FilterGroup => ({
+      ...group,
+      rules: group.rules.filter(rule => rule.id !== ruleId),
+      groups: group.groups.map(updateGroup)
+    });
+
+    setFilterDefinition(prev => updateGroup(prev));
+  };
+
+  // Update filter rule
+  const updateFilterRule = (ruleId: string, field: keyof FilterRule, value: string) => {
+    const updateGroup = (group: FilterGroup): FilterGroup => ({
+      ...group,
+      rules: group.rules.map(rule => 
+        rule.id === ruleId ? { ...rule, [field]: value } : rule
+      ),
+      groups: group.groups.map(updateGroup)
+    });
+
+    setFilterDefinition(prev => updateGroup(prev));
+  };
+
+  // Preview contacts based on current filter
+  const previewFilter = () => {
+    if (filterDefinition.rules.length === 0) {
+      setPreviewContacts([]);
+      setPreviewCount(0);
+      return;
+    }
+    setIsPreviewLoading(true);
+    previewFilterMutation.mutate(filterDefinition);
+    setIsPreviewLoading(false);
+  };
+
+  // Auto-preview when filter changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (filterDefinition.rules.length > 0) {
+        previewFilter();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [filterDefinition]);
 
   const updateListMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<ListFormData> }) => 
@@ -147,7 +298,10 @@ export default function Lists() {
   });
 
   const onCreateSubmit = (data: ListFormData) => {
-    createListMutation.mutate(data);
+    createListMutation.mutate({
+      ...data,
+      filterDefinition
+    });
   };
 
   const onEditSubmit = (data: Partial<ListFormData>) => {
