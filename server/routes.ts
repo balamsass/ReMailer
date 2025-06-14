@@ -102,6 +102,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create session
       req.session.userId = user.id;
       
+      // Create audit log
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "login",
+        resource: "auth",
+        details: { email: data.email, timestamp: new Date() }
+      });
+      
       res.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role } });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Login failed" });
