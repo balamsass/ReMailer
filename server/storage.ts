@@ -1,0 +1,483 @@
+import { 
+  users, 
+  apiTokens, 
+  contacts, 
+  campaigns, 
+  campaignContacts, 
+  campaignAnalytics,
+  type User, 
+  type InsertUser, 
+  type ApiToken, 
+  type InsertApiToken, 
+  type Contact, 
+  type InsertContact, 
+  type Campaign, 
+  type InsertCampaign,
+  type CampaignContact,
+  type InsertCampaignContact,
+  type CampaignAnalytics
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, and, like, sql, desc, count, inArray } from "drizzle-orm";
+
+export interface IStorage {
+  // User operations
+  getUser(id: number): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+
+  // API Token operations
+  getApiTokens(userId: number): Promise<ApiToken[]>;
+  getApiTokenByToken(token: string): Promise<ApiToken | undefined>;
+  createApiToken(token: Omit<InsertApiToken, 'userId'> & { userId: number; token: string }): Promise<ApiToken>;
+  updateApiTokenLastUsed(tokenId: number): Promise<void>;
+  deleteApiToken(tokenId: number, userId: number): Promise<boolean>;
+
+  // Contact operations
+  getContacts(userId: number, options?: { page?: number; limit?: number; search?: string; tags?: string }): Promise<{
+    contacts: Contact[];
+    total: number;
+    active: number;
+  }>;
+  getContactCount(userId: number): Promise<number>;
+  createContact(contact: InsertContact): Promise<Contact>;
+  updateContact(contactId: number, userId: number, data: Partial<InsertContact>): Promise<Contact | undefined>;
+  deleteContact(contactId: number, userId: number): Promise<boolean>;
+  importContacts(userId: number, contacts: any[]): Promise<{ successful: number; failed: number; errors: string[] }>;
+
+  // Campaign operations
+  getCampaigns(userId: number): Promise<Campaign[]>;
+  getCampaign(campaignId: number, userId: number): Promise<Campaign | undefined>;
+  getCampaignCount(userId: number): Promise<number>;
+  getRecentCampaigns(userId: number, limit: number): Promise<Campaign[]>;
+  createCampaign(campaign: InsertCampaign): Promise<Campaign>;
+  updateCampaign(campaignId: number, userId: number, data: Partial<InsertCampaign>): Promise<Campaign | undefined>;
+  deleteCampaign(campaignId: number, userId: number): Promise<boolean>;
+
+  // Analytics operations
+  getDashboardAnalytics(userId: number): Promise<{
+    totalSent: number;
+    openRate: string;
+    clickRate: string;
+    bounceRate: string;
+  }>;
+  getAnalytics(userId: number): Promise<{
+    totalOpens: number;
+    totalClicks: number;
+    totalBounces: number;
+    totalUnsubscribes: number;
+    openRate: string;
+    clickRate: string;
+    bounceRate: string;
+    unsubscribeRate: string;
+    topCampaigns: any[];
+  }>;
+  getCampaignAnalytics(campaignId: number, userId: number): Promise<CampaignAnalytics | undefined>;
+}
+
+export class DatabaseStorage implements IStorage {
+  // User operations
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  // API Token operations
+  async getApiTokens(userId: number): Promise<ApiToken[]> {
+    return await db
+      .select()
+      .from(apiTokens)
+      .where(eq(apiTokens.userId, userId))
+      .orderBy(desc(apiTokens.createdAt));
+  }
+
+  async getApiTokenByToken(token: string): Promise<ApiToken | undefined> {
+    const [apiToken] = await db
+      .select()
+      .from(apiTokens)
+      .where(eq(apiTokens.token, token));
+    return apiToken || undefined;
+  }
+
+  async createApiToken(tokenData: Omit<InsertApiToken, 'userId'> & { userId: number; token: string }): Promise<ApiToken> {
+    const [token] = await db
+      .insert(apiTokens)
+      .values(tokenData)
+      .returning();
+    return token;
+  }
+
+  async updateApiTokenLastUsed(tokenId: number): Promise<void> {
+    await db
+      .update(apiTokens)
+      .set({ lastUsedAt: sql`NOW()` })
+      .where(eq(apiTokens.id, tokenId));
+  }
+
+  async deleteApiToken(tokenId: number, userId: number): Promise<boolean> {
+    const result = await db
+      .delete(apiTokens)
+      .where(and(eq(apiTokens.id, tokenId), eq(apiTokens.userId, userId)));
+    return result.rowCount > 0;
+  }
+
+  // Contact operations
+  async getContacts(userId: number, options: { page?: number; limit?: number; search?: string; tags?: string } = {}): Promise<{
+    contacts: Contact[];
+    total: number;
+    active: number;
+  }> {
+    const { page = 1, limit = 50, search, tags } = options;
+    const offset = (page - 1) * limit;
+
+    let query = db.select().from(contacts).where(eq(contacts.userId, userId));
+
+    if (search) {
+      query = query.where(
+        sql`${contacts.email} ILIKE ${`%${search}%`} OR ${contacts.name} ILIKE ${`%${search}%`}`
+      );
+    }
+
+    if (tags) {
+      query = query.where(sql`${tags} = ANY(${contacts.tags})`);
+    }
+
+    const contactsResult = await query
+      .orderBy(desc(contacts.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    // Get total count
+    const [totalResult] = await db
+      .select({ count: count() })
+      .from(contacts)
+      .where(eq(contacts.userId, userId));
+
+    // Get active count
+    const [activeResult] = await db
+      .select({ count: count() })
+      .from(contacts)
+      .where(and(eq(contacts.userId, userId), eq(contacts.status, 'active')));
+
+    return {
+      contacts: contactsResult,
+      total: totalResult.count,
+      active: activeResult.count,
+    };
+  }
+
+  async getContactCount(userId: number): Promise<number> {
+    const [result] = await db
+      .select({ count: count() })
+      .from(contacts)
+      .where(eq(contacts.userId, userId));
+    return result.count;
+  }
+
+  async createContact(contact: InsertContact): Promise<Contact> {
+    const [newContact] = await db
+      .insert(contacts)
+      .values({
+        ...contact,
+        updatedAt: sql`NOW()`,
+      })
+      .returning();
+    return newContact;
+  }
+
+  async updateContact(contactId: number, userId: number, data: Partial<InsertContact>): Promise<Contact | undefined> {
+    const [updated] = await db
+      .update(contacts)
+      .set({
+        ...data,
+        updatedAt: sql`NOW()`,
+      })
+      .where(and(eq(contacts.id, contactId), eq(contacts.userId, userId)))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteContact(contactId: number, userId: number): Promise<boolean> {
+    const result = await db
+      .delete(contacts)
+      .where(and(eq(contacts.id, contactId), eq(contacts.userId, userId)));
+    return result.rowCount > 0;
+  }
+
+  async importContacts(userId: number, contactsData: any[]): Promise<{ successful: number; failed: number; errors: string[] }> {
+    let successful = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const contactData of contactsData) {
+      try {
+        // Check if contact already exists
+        const existing = await db
+          .select()
+          .from(contacts)
+          .where(and(eq(contacts.userId, userId), eq(contacts.email, contactData.email)));
+
+        if (existing.length > 0) {
+          // Update existing contact
+          await this.updateContact(existing[0].id, userId, {
+            name: contactData.name,
+            tags: contactData.tags || [],
+          });
+        } else {
+          // Create new contact
+          await this.createContact({
+            userId,
+            email: contactData.email,
+            name: contactData.name,
+            tags: contactData.tags || [],
+            status: 'active',
+          });
+        }
+        successful++;
+      } catch (error) {
+        failed++;
+        errors.push(`Failed to import ${contactData.email}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    return { successful, failed, errors };
+  }
+
+  // Campaign operations
+  async getCampaigns(userId: number): Promise<Campaign[]> {
+    return await db
+      .select()
+      .from(campaigns)
+      .where(eq(campaigns.userId, userId))
+      .orderBy(desc(campaigns.createdAt));
+  }
+
+  async getCampaign(campaignId: number, userId: number): Promise<Campaign | undefined> {
+    const [campaign] = await db
+      .select()
+      .from(campaigns)
+      .where(and(eq(campaigns.id, campaignId), eq(campaigns.userId, userId)));
+    return campaign || undefined;
+  }
+
+  async getCampaignCount(userId: number): Promise<number> {
+    const [result] = await db
+      .select({ count: count() })
+      .from(campaigns)
+      .where(eq(campaigns.userId, userId));
+    return result.count;
+  }
+
+  async getRecentCampaigns(userId: number, limit: number): Promise<Campaign[]> {
+    return await db
+      .select()
+      .from(campaigns)
+      .where(eq(campaigns.userId, userId))
+      .orderBy(desc(campaigns.createdAt))
+      .limit(limit);
+  }
+
+  async createCampaign(campaign: InsertCampaign): Promise<Campaign> {
+    const [newCampaign] = await db
+      .insert(campaigns)
+      .values({
+        ...campaign,
+        updatedAt: sql`NOW()`,
+      })
+      .returning();
+    return newCampaign;
+  }
+
+  async updateCampaign(campaignId: number, userId: number, data: Partial<InsertCampaign>): Promise<Campaign | undefined> {
+    const [updated] = await db
+      .update(campaigns)
+      .set({
+        ...data,
+        updatedAt: sql`NOW()`,
+      })
+      .where(and(eq(campaigns.id, campaignId), eq(campaigns.userId, userId)))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteCampaign(campaignId: number, userId: number): Promise<boolean> {
+    const result = await db
+      .delete(campaigns)
+      .where(and(eq(campaigns.id, campaignId), eq(campaigns.userId, userId)));
+    return result.rowCount > 0;
+  }
+
+  // Analytics operations
+  async getDashboardAnalytics(userId: number): Promise<{
+    totalSent: number;
+    openRate: string;
+    clickRate: string;
+    bounceRate: string;
+  }> {
+    // Get aggregated analytics for user's campaigns
+    const userCampaigns = await db
+      .select({ id: campaigns.id })
+      .from(campaigns)
+      .where(eq(campaigns.userId, userId));
+
+    if (userCampaigns.length === 0) {
+      return {
+        totalSent: 0,
+        openRate: "0.00%",
+        clickRate: "0.00%",
+        bounceRate: "0.00%",
+      };
+    }
+
+    const campaignIds = userCampaigns.map(c => c.id);
+
+    const [analytics] = await db
+      .select({
+        totalSent: sql<number>`COALESCE(SUM(${campaignAnalytics.totalSent}), 0)`,
+        totalDelivered: sql<number>`COALESCE(SUM(${campaignAnalytics.totalDelivered}), 0)`,
+        totalOpened: sql<number>`COALESCE(SUM(${campaignAnalytics.totalOpened}), 0)`,
+        totalClicked: sql<number>`COALESCE(SUM(${campaignAnalytics.totalClicked}), 0)`,
+        totalBounced: sql<number>`COALESCE(SUM(${campaignAnalytics.totalBounced}), 0)`,
+      })
+      .from(campaignAnalytics)
+      .where(inArray(campaignAnalytics.campaignId, campaignIds));
+
+    const openRate = analytics.totalDelivered > 0 
+      ? ((analytics.totalOpened / analytics.totalDelivered) * 100).toFixed(1) + "%"
+      : "0.0%";
+
+    const clickRate = analytics.totalDelivered > 0
+      ? ((analytics.totalClicked / analytics.totalDelivered) * 100).toFixed(1) + "%"
+      : "0.0%";
+
+    const bounceRate = analytics.totalSent > 0
+      ? ((analytics.totalBounced / analytics.totalSent) * 100).toFixed(1) + "%"
+      : "0.0%";
+
+    return {
+      totalSent: analytics.totalSent,
+      openRate,
+      clickRate,
+      bounceRate,
+    };
+  }
+
+  async getAnalytics(userId: number): Promise<{
+    totalOpens: number;
+    totalClicks: number;
+    totalBounces: number;
+    totalUnsubscribes: number;
+    openRate: string;
+    clickRate: string;
+    bounceRate: string;
+    unsubscribeRate: string;
+    topCampaigns: any[];
+  }> {
+    // Get aggregated analytics for user's campaigns
+    const userCampaigns = await db
+      .select({ id: campaigns.id })
+      .from(campaigns)
+      .where(eq(campaigns.userId, userId));
+
+    if (userCampaigns.length === 0) {
+      return {
+        totalOpens: 0,
+        totalClicks: 0,
+        totalBounces: 0,
+        totalUnsubscribes: 0,
+        openRate: "0.00%",
+        clickRate: "0.00%",
+        bounceRate: "0.00%",
+        unsubscribeRate: "0.00%",
+        topCampaigns: [],
+      };
+    }
+
+    const campaignIds = userCampaigns.map(c => c.id);
+
+    const [analytics] = await db
+      .select({
+        totalSent: sql<number>`COALESCE(SUM(${campaignAnalytics.totalSent}), 0)`,
+        totalDelivered: sql<number>`COALESCE(SUM(${campaignAnalytics.totalDelivered}), 0)`,
+        totalOpened: sql<number>`COALESCE(SUM(${campaignAnalytics.totalOpened}), 0)`,
+        totalClicked: sql<number>`COALESCE(SUM(${campaignAnalytics.totalClicked}), 0)`,
+        totalBounced: sql<number>`COALESCE(SUM(${campaignAnalytics.totalBounced}), 0)`,
+        totalUnsubscribed: sql<number>`COALESCE(SUM(${campaignAnalytics.totalUnsubscribed}), 0)`,
+      })
+      .from(campaignAnalytics)
+      .where(inArray(campaignAnalytics.campaignId, campaignIds));
+
+    const openRate = analytics.totalDelivered > 0 
+      ? ((analytics.totalOpened / analytics.totalDelivered) * 100).toFixed(1) + "%"
+      : "0.0%";
+
+    const clickRate = analytics.totalDelivered > 0
+      ? ((analytics.totalClicked / analytics.totalDelivered) * 100).toFixed(1) + "%"
+      : "0.0%";
+
+    const bounceRate = analytics.totalSent > 0
+      ? ((analytics.totalBounced / analytics.totalSent) * 100).toFixed(1) + "%"
+      : "0.0%";
+
+    const unsubscribeRate = analytics.totalSent > 0
+      ? ((analytics.totalUnsubscribed / analytics.totalSent) * 100).toFixed(1) + "%"
+      : "0.0%";
+
+    // Get top performing campaigns
+    const topCampaigns = await db
+      .select({
+        name: campaigns.name,
+        sent: campaignAnalytics.totalSent,
+        opens: campaignAnalytics.totalOpened,
+        clicks: campaignAnalytics.totalClicked,
+        sentDate: campaigns.sentAt,
+      })
+      .from(campaigns)
+      .innerJoin(campaignAnalytics, eq(campaigns.id, campaignAnalytics.campaignId))
+      .where(eq(campaigns.userId, userId))
+      .orderBy(desc(campaignAnalytics.totalOpened))
+      .limit(5);
+
+    return {
+      totalOpens: analytics.totalOpened,
+      totalClicks: analytics.totalClicked,
+      totalBounces: analytics.totalBounced,
+      totalUnsubscribes: analytics.totalUnsubscribed,
+      openRate,
+      clickRate,
+      bounceRate,
+      unsubscribeRate,
+      topCampaigns,
+    };
+  }
+
+  async getCampaignAnalytics(campaignId: number, userId: number): Promise<CampaignAnalytics | undefined> {
+    // First verify the campaign belongs to the user
+    const campaign = await this.getCampaign(campaignId, userId);
+    if (!campaign) {
+      return undefined;
+    }
+
+    const [analytics] = await db
+      .select()
+      .from(campaignAnalytics)
+      .where(eq(campaignAnalytics.campaignId, campaignId));
+
+    return analytics || undefined;
+  }
+}
+
+export const storage = new DatabaseStorage();
