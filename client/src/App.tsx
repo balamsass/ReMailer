@@ -14,6 +14,7 @@ import ListDetail from "./pages/list-detail";
 import Analytics from "./pages/analytics";
 import ApiTokens from "./pages/api-tokens";
 import Admin from "./pages/admin";
+import Images from "./pages/images";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {

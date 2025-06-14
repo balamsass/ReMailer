@@ -10,7 +10,8 @@ import {
   Settings,
   LogOut,
   Shield,
-  List
+  List,
+  Image
 } from "lucide-react";
 
 const navigation = [
@@ -18,6 +19,7 @@ const navigation = [
   { name: "Campaigns", href: "/campaigns", icon: Send },
   { name: "Contacts", href: "/contacts", icon: Users },
   { name: "Lists", href: "/lists", icon: List },
+  { name: "Images", href: "/images", icon: Image },
   { name: "Analytics", href: "/analytics", icon: ChartScatter },
   { name: "API Tokens", href: "/api-tokens", icon: Code },
 ];

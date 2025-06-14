@@ -1,17 +1,17 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Image } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
-import { Search, Upload, Plus, Edit, Trash2, ExternalLink, Copy } from "lucide-react";
-import type { Image } from "@shared/schema";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Search, Plus, Edit2, Trash2, Tag } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ImageLibraryProps {
   onImageSelect?: (image: Image) => void;
@@ -22,8 +22,8 @@ interface ImageLibraryProps {
 interface ImageFormData {
   name: string;
   url: string;
-  altText?: string;
-  description?: string;
+  altText: string;
+  description: string;
   tags: string[];
 }
 
@@ -32,14 +32,14 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [editingImage, setEditingImage] = useState<Image | null>(null);
+  const [newTag, setNewTag] = useState("");
   const [formData, setFormData] = useState<ImageFormData>({
     name: "",
     url: "",
     altText: "",
     description: "",
-    tags: []
+    tags: [],
   });
-  const [newTag, setNewTag] = useState("");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -49,7 +49,7 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
   });
 
   const createImageMutation = useMutation({
-    mutationFn: async (data: Omit<ImageFormData, "tags"> & { tags: string[] }) => {
+    mutationFn: async (data: ImageFormData) => {
       return await apiRequest("/api/images", "POST", data);
     },
     onSuccess: () => {
@@ -58,7 +58,7 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
       resetForm();
       toast({
         title: "Success",
-        description: "Image added to library successfully",
+        description: "Image added successfully",
       });
     },
     onError: (error) => {
@@ -79,6 +79,7 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
       queryClient.invalidateQueries({ queryKey: ["/api/images"] });
       setEditingImage(null);
       resetForm();
+      setIsUploadDialogOpen(false);
       toast({
         title: "Success",
         description: "Image updated successfully",
@@ -119,12 +120,13 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
       url: "",
       altText: "",
       description: "",
-      tags: []
+      tags: [],
     });
     setNewTag("");
+    setEditingImage(null);
   };
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = () => {
     if (!formData.name || !formData.url) {
       toast({
         title: "Error",
@@ -135,16 +137,19 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
     }
 
     if (editingImage) {
-      updateImageMutation.mutate({ id: editingImage.id, ...formData });
+      updateImageMutation.mutate({
+        id: editingImage.id,
+        ...formData,
+      });
     } else {
       createImageMutation.mutate(formData);
     }
-  }, [formData, editingImage, createImageMutation, updateImageMutation, toast]);
+  };
 
   const handleEditImage = (image: Image) => {
     setEditingImage(image);
     setFormData({
-      name: image.name,
+      name: image.name || image.originalName,
       url: image.url,
       altText: image.altText || "",
       description: image.description || "",
@@ -179,146 +184,116 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
   };
 
   const allTags = imagesData?.images?.reduce((tags: string[], image: Image) => {
-    image.tags?.forEach(tag => {
+    image.tags?.forEach((tag: string) => {
       if (!tags.includes(tag)) tags.push(tag);
     });
     return tags;
   }, []) || [];
 
   return (
-    <div className={`space-y-6 ${className}`}>
+    <div className={cn("space-y-6", className)}>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold">Image Library</h2>
         <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => { resetForm(); setEditingImage(null); }}>
-              <Upload className="h-4 w-4 mr-2" />
+            <Button onClick={() => resetForm()}>
+              <Plus className="h-4 w-4 mr-2" />
               Add Image
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>{editingImage ? "Edit Image" : "Add New Image"}</DialogTitle>
+              <DialogTitle>
+                {editingImage ? "Edit Image" : "Add New Image"}
+              </DialogTitle>
             </DialogHeader>
-
-            <Tabs defaultValue="url" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="url">From URL</TabsTrigger>
-                <TabsTrigger value="upload" disabled>Upload File</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="url" className="space-y-4">
-                <div className="grid gap-4">
-                  <div>
-                    <Label htmlFor="image-name">Name *</Label>
-                    <Input
-                      id="image-name"
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Enter image name"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="image-url">Image URL *</Label>
-                    <Input
-                      id="image-url"
-                      type="url"
-                      value={formData.url}
-                      onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
-                      placeholder="https://example.com/image.jpg"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="alt-text">Alt Text</Label>
-                    <Input
-                      id="alt-text"
-                      value={formData.altText}
-                      onChange={(e) => setFormData(prev => ({ ...prev, altText: e.target.value }))}
-                      placeholder="Descriptive text for accessibility"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Optional description"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Tags</Label>
-                    <div className="flex gap-2 mb-2">
-                      <Input
-                        value={newTag}
-                        onChange={(e) => setNewTag(e.target.value)}
-                        placeholder="Add tag"
-                        onKeyPress={(e) => e.key === "Enter" && handleAddTag()}
-                      />
-                      <Button onClick={handleAddTag} size="sm">
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {formData.tags.map(tag => (
-                        <Badge key={tag} variant="secondary" className="cursor-pointer" onClick={() => handleRemoveTag(tag)}>
-                          {tag} ×
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Preview */}
-                  {formData.url && (
-                    <div>
-                      <Label>Preview</Label>
-                      <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
-                        <img
-                          src={formData.url}
-                          alt={formData.altText || formData.name}
-                          className="max-w-full max-h-48 object-contain mx-auto"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleSubmit}
-                    disabled={createImageMutation.isPending || updateImageMutation.isPending}
-                  >
-                    {editingImage ? "Update" : "Add"} Image
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="image-name">Name *</Label>
+                <Input
+                  id="image-name"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter image name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="image-url">URL *</Label>
+                <Input
+                  id="image-url"
+                  value={formData.url}
+                  onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
+                  placeholder="Enter image URL"
+                />
+              </div>
+              <div>
+                <Label htmlFor="image-alt">Alt Text</Label>
+                <Input
+                  id="image-alt"
+                  value={formData.altText}
+                  onChange={(e) => setFormData(prev => ({ ...prev, altText: e.target.value }))}
+                  placeholder="Enter alt text"
+                />
+              </div>
+              <div>
+                <Label htmlFor="image-description">Description</Label>
+                <Textarea
+                  id="image-description"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter description"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <Label>Tags</Label>
+                <div className="flex gap-2 mb-2">
+                  <Input
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    placeholder="Add tag"
+                    onKeyPress={(e) => e.key === "Enter" && handleAddTag()}
+                  />
+                  <Button type="button" onClick={handleAddTag} size="sm">
+                    Add
                   </Button>
                 </div>
-              </TabsContent>
-
-              <TabsContent value="upload">
-                <div className="text-center py-8 text-gray-500">
-                  File upload feature coming soon. Please use the URL option for now.
+                <div className="flex flex-wrap gap-1">
+                  {formData.tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="cursor-pointer" onClick={() => handleRemoveTag(tag)}>
+                      {tag} ×
+                    </Badge>
+                  ))}
                 </div>
-              </TabsContent>
-            </Tabs>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleSubmit} 
+                  disabled={createImageMutation.isPending || updateImageMutation.isPending}
+                  className="flex-1"
+                >
+                  {editingImage ? "Update" : "Add"} Image
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsUploadDialogOpen(false);
+                    resetForm();
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
 
       {/* Search and Filters */}
-      <div className="flex gap-4 items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+      <div className="space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
             placeholder="Search images..."
             value={searchTerm}
@@ -326,121 +301,139 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
             className="pl-10"
           />
         </div>
-        <div className="flex gap-2">
-          {allTags.map(tag => (
-            <Badge
-              key={tag}
-              variant={selectedTags.includes(tag) ? "default" : "outline"}
-              className="cursor-pointer"
-              onClick={() => {
-                setSelectedTags(prev =>
-                  prev.includes(tag)
-                    ? prev.filter(t => t !== tag)
-                    : [...prev, tag]
-                );
-              }}
-            >
-              {tag}
-            </Badge>
-          ))}
-        </div>
+        
+        {allTags.length > 0 && (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Filter by tags:</Label>
+            <div className="flex flex-wrap gap-2">
+              {allTags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant={selectedTags.includes(tag) ? "default" : "secondary"}
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setSelectedTags(prev =>
+                      prev.includes(tag)
+                        ? prev.filter(t => t !== tag)
+                        : [...prev, tag]
+                    );
+                  }}
+                >
+                  <Tag className="h-3 w-3 mr-1" />
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Images Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <Card key={i} className="overflow-hidden">
-              <div className="aspect-video bg-gray-200 animate-pulse" />
-              <CardContent className="p-4">
-                <div className="h-4 bg-gray-200 animate-pulse rounded mb-2" />
-                <div className="h-3 bg-gray-200 animate-pulse rounded w-2/3" />
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-0">
+                <div className="h-48 bg-gray-200 rounded-t-lg"></div>
+                <div className="p-3 space-y-2">
+                  <div className="h-4 bg-gray-200 rounded"></div>
+                  <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {imagesData?.images?.map((image: Image) => (
-            <Card key={image.id} className="overflow-hidden group">
-              <div className="aspect-video relative overflow-hidden bg-gray-100 dark:bg-gray-800">
-                <img
-                  src={image.url}
-                  alt={image.altText || image.name}
-                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                  onError={(e) => {
-                    e.currentTarget.src = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'><rect width='400' height='300' fill='%23f3f4f6'/><text x='200' y='150' text-anchor='middle' fill='%236b7280'>Failed to load</text></svg>";
-                  }}
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-center">
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => handleCopyUrl(image.url)}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => window.open(image.url, "_blank")}>
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => handleEditImage(image)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="destructive" 
-                      onClick={() => deleteImageMutation.mutate(image.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+            <Card key={image.id} className="group hover:shadow-md transition-shadow">
+              <CardContent className="p-0">
+                <div className="relative">
+                  <img
+                    src={image.url}
+                    alt={image.altText || image.name || "Image"}
+                    className="w-full h-48 object-cover rounded-t-lg"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f3f4f6'/%3E%3Ctext x='200' y='150' text-anchor='middle' fill='%239ca3af' font-family='Arial' font-size='14'%3EImage not found%3C/text%3E%3C/svg%3E";
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-t-lg flex items-center justify-center">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 space-x-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleCopyUrl(image.url)}
+                      >
+                        Copy URL
+                      </Button>
+                      {showSelectButton && onImageSelect && (
+                        <Button
+                          size="sm"
+                          onClick={() => onImageSelect(image)}
+                        >
+                          Select
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <CardContent className="p-4">
-                <h3 className="font-semibold text-sm mb-1 truncate">{image.name}</h3>
-                {image.description && (
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">
-                    {image.description}
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {image.tags?.slice(0, 3).map(tag => (
-                    <Badge key={tag} variant="outline" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                  {image.tags && image.tags.length > 3 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{image.tags.length - 3}
-                    </Badge>
+                <div className="p-3">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-medium text-sm truncate">
+                      {image.name || image.originalName}
+                    </h3>
+                    <div className="flex gap-1 ml-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0"
+                        onClick={() => handleEditImage(image)}
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                        onClick={() => deleteImageMutation.mutate(image.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  {image.description && (
+                    <p className="text-xs text-gray-600 mb-2 line-clamp-2">
+                      {image.description}
+                    </p>
+                  )}
+                  {image.tags && image.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {image.tags.slice(0, 3).map((tag: string) => (
+                        <Badge key={tag} variant="outline" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                      {image.tags.length > 3 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{image.tags.length - 3}
+                        </Badge>
+                      )}
+                    </div>
                   )}
                 </div>
               </CardContent>
-              {showSelectButton && onImageSelect && (
-                <CardFooter className="p-4 pt-0">
-                  <Button 
-                    onClick={() => onImageSelect(image)} 
-                    className="w-full" 
-                    size="sm"
-                  >
-                    Select Image
-                  </Button>
-                </CardFooter>
-              )}
             </Card>
-          ))}
+          )) || []}
         </div>
       )}
 
       {!isLoading && (!imagesData?.images || imagesData.images.length === 0) && (
         <div className="text-center py-12">
-          <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No images found</h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            {searchTerm || selectedTags.length > 0 
-              ? "Try adjusting your search terms or filters" 
-              : "Start building your image library by adding your first image"}
-          </p>
+          <p className="text-gray-500 mb-4">No images found</p>
           <Button onClick={() => setIsUploadDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Add First Image
+            Add Your First Image
           </Button>
         </div>
       )}
