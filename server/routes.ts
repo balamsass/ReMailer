@@ -1,10 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertContactSchema, insertCampaignSchema, insertApiTokenSchema, insertListSchema } from "@shared/schema";
+import { insertUserSchema, insertContactSchema, insertCampaignSchema, insertApiTokenSchema, insertListSchema, insertImageSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { z } from "zod";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import "./types";
 
 // Auth middleware

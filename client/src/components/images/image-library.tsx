@@ -33,6 +33,8 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [editingImage, setEditingImage] = useState<Image | null>(null);
   const [newTag, setNewTag] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadMode, setUploadMode] = useState<'url' | 'file'>('url');
   const [formData, setFormData] = useState<ImageFormData>({
     name: "",
     url: "",
@@ -49,12 +51,24 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
   });
 
   const createImageMutation = useMutation({
-    mutationFn: async (data: ImageFormData) => {
-      return await apiRequest("/api/images", "POST", data);
+    mutationFn: async (data: ImageFormData | FormData) => {
+      if (data instanceof FormData) {
+        return await fetch("/api/images/upload", {
+          method: "POST",
+          body: data,
+        }).then(res => {
+          if (!res.ok) throw new Error('Upload failed');
+          return res.json();
+        });
+      } else {
+        return await apiRequest("/api/images", "POST", data);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/images"] });
       setIsUploadDialogOpen(false);
+      setSelectedFile(null);
+      setUploadMode('url');
       resetForm();
       toast({
         title: "Success",
@@ -124,25 +138,61 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
     });
     setNewTag("");
     setEditingImage(null);
+    setSelectedFile(null);
+    setUploadMode('url');
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      // Auto-fill name from filename if empty
+      if (!formData.name) {
+        setFormData(prev => ({
+          ...prev,
+          name: file.name.split('.')[0]
+        }));
+      }
+    }
   };
 
   const handleSubmit = () => {
-    if (!formData.name || !formData.url) {
-      toast({
-        title: "Error",
-        description: "Name and URL are required",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (uploadMode === 'file') {
+      if (!selectedFile || !formData.name) {
+        toast({
+          title: "Error",
+          description: "File and name are required",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (editingImage) {
-      updateImageMutation.mutate({
-        id: editingImage.id,
-        ...formData,
-      });
+      const formDataToUpload = new FormData();
+      formDataToUpload.append('file', selectedFile);
+      formDataToUpload.append('name', formData.name);
+      formDataToUpload.append('altText', formData.altText);
+      formDataToUpload.append('description', formData.description);
+      formDataToUpload.append('tags', JSON.stringify(formData.tags));
+
+      createImageMutation.mutate(formDataToUpload);
     } else {
-      createImageMutation.mutate(formData);
+      if (!formData.name || !formData.url) {
+        toast({
+          title: "Error",
+          description: "Name and URL are required",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (editingImage) {
+        updateImageMutation.mutate({
+          id: editingImage.id,
+          ...formData,
+        });
+      } else {
+        createImageMutation.mutate(formData);
+      }
     }
   };
 
@@ -209,6 +259,30 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              {!editingImage && (
+                <div>
+                  <Label>Upload Method</Label>
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      type="button"
+                      variant={uploadMode === 'url' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setUploadMode('url')}
+                    >
+                      From URL
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={uploadMode === 'file' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setUploadMode('file')}
+                    >
+                      Upload File
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
               <div>
                 <Label htmlFor="image-name">Name *</Label>
                 <Input
@@ -218,15 +292,34 @@ export default function ImageLibrary({ onImageSelect, showSelectButton = false, 
                   placeholder="Enter image name"
                 />
               </div>
-              <div>
-                <Label htmlFor="image-url">URL *</Label>
-                <Input
-                  id="image-url"
-                  value={formData.url}
-                  onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
-                  placeholder="Enter image URL"
-                />
-              </div>
+              
+              {uploadMode === 'file' && !editingImage ? (
+                <div>
+                  <Label htmlFor="image-file">Image File *</Label>
+                  <Input
+                    id="image-file"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="cursor-pointer"
+                  />
+                  {selectedFile && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="image-url">URL *</Label>
+                  <Input
+                    id="image-url"
+                    value={formData.url}
+                    onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
+                    placeholder="Enter image URL"
+                  />
+                </div>
+              )}
               <div>
                 <Label htmlFor="image-alt">Alt Text</Label>
                 <Input
