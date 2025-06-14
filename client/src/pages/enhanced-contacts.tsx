@@ -81,10 +81,7 @@ export default function EnhancedContacts() {
         ...data,
         tags: data.tags ? data.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
       };
-      return apiRequest('/api/contacts', {
-        method: 'POST',
-        body: JSON.stringify(contactData),
-      });
+      return apiRequest('/api/contacts', 'POST', contactData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
@@ -111,10 +108,7 @@ export default function EnhancedContacts() {
         ...data,
         tags: data.tags ? data.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
       };
-      return apiRequest(`/api/contacts/${editingContact.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(contactData),
-      });
+      return apiRequest(`/api/contacts/${editingContact.id}`, 'PATCH', contactData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
@@ -137,9 +131,7 @@ export default function EnhancedContacts() {
 
   const deleteContactMutation = useMutation({
     mutationFn: async (contactId: number) => {
-      return apiRequest(`/api/contacts/${contactId}`, {
-        method: 'DELETE',
-      });
+      return apiRequest(`/api/contacts/${contactId}`, 'DELETE');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
@@ -159,10 +151,7 @@ export default function EnhancedContacts() {
 
   const changeStatusMutation = useMutation({
     mutationFn: async ({ contactId, status }: { contactId: number; status: string }) => {
-      return apiRequest(`/api/contacts/${contactId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status }),
-      });
+      return apiRequest(`/api/contacts/${contactId}`, 'PATCH', { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/contacts'] });
@@ -183,18 +172,12 @@ export default function EnhancedContacts() {
   const bulkActionMutation = useMutation({
     mutationFn: async ({ action, contactIds }: { action: string; contactIds: number[] }) => {
       if (action === 'delete') {
-        return apiRequest('/api/contacts/bulk-delete', {
-          method: 'POST',
-          body: JSON.stringify({ contactIds }),
-        });
+        return apiRequest('/api/contacts/bulk-delete', 'POST', { contactIds });
       } else {
         const status = action === 'activate' ? 'active' : 
                      action === 'deactivate' ? 'inactive' :
                      action === 'bounced' ? 'bounced' : 'unsubscribed';
-        return apiRequest('/api/contacts/bulk-update-status', {
-          method: 'POST',
-          body: JSON.stringify({ contactIds, status }),
-        });
+        return apiRequest('/api/contacts/bulk-update-status', 'POST', { contactIds, status });
       }
     },
     onSuccess: (_, { action }) => {
