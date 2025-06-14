@@ -11,6 +11,7 @@ import Campaigns from "./pages/campaigns";
 import Contacts from "./pages/contacts";
 import Analytics from "./pages/analytics";
 import ApiTokens from "./pages/api-tokens";
+import Admin from "./pages/admin";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
@@ -23,6 +24,7 @@ function AuthenticatedApp() {
         <Route path="/contacts" component={Contacts} />
         <Route path="/analytics" component={Analytics} />
         <Route path="/api-tokens" component={ApiTokens} />
+        <Route path="/admin" component={Admin} />
         <Route component={NotFound} />
       </Switch>
     </MainLayout>

@@ -8,15 +8,20 @@ import {
   ChartScatter, 
   Code, 
   Settings,
-  LogOut
+  LogOut,
+  Shield
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
   { name: "Campaigns", href: "/campaigns", icon: Send },
   { name: "Contacts", href: "/contacts", icon: Users },
-  { name: "ChartScatter", href: "/analytics", icon: ChartScatter },
+  { name: "Analytics", href: "/analytics", icon: ChartScatter },
   { name: "API Tokens", href: "/api-tokens", icon: Code },
+];
+
+const adminNavigation = [
+  { name: "Admin Dashboard", href: "/admin", icon: Shield },
 ];
 
 export default function Sidebar() {
@@ -53,6 +58,28 @@ export default function Sidebar() {
             );
           })}
         </ul>
+
+        {/* Admin Navigation */}
+        {user?.role === 'admin' && (
+          <div className="mt-6">
+            <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Administration
+            </div>
+            <ul className="mt-2 space-y-2">
+              {adminNavigation.map((item) => {
+                const isActive = location === item.href;
+                return (
+                  <li key={item.name}>
+                    <Link href={item.href} className={`nav-item ${isActive ? "active" : ""}`}>
+                      <item.icon className="w-4 h-4" />
+                      <span className="font-medium">{item.name}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
       </nav>
 
       {/* User Profile */}

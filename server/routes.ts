@@ -387,6 +387,143 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin routes (require admin role)
+  function requireAdmin(req: any, res: any, next: any) {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    next();
+  }
+
+  // User management
+  app.get("/api/admin/users", requireSession, requireAdmin, async (req, res) => {
+    try {
+      const { page, limit, search, role } = req.query;
+      const users = await storage.getAllUsers({
+        page: page ? parseInt(page as string) : undefined,
+        limit: limit ? parseInt(limit as string) : undefined,
+        search: search as string,
+        role: role as string,
+      });
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch users" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id/role", requireSession, requireAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const { role } = req.body;
+      
+      if (!role || !['user', 'admin'].includes(role)) {
+        return res.status(400).json({ error: "Invalid role" });
+      }
+
+      const user = await storage.updateUserRole(userId, role);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Log the action
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: "update_user_role",
+        resource: "user",
+        resourceId: userId.toString(),
+        details: { newRole: role },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      });
+
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to update user role" });
+    }
+  });
+
+  app.delete("/api/admin/users/:id", requireSession, requireAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (userId === req.user.id) {
+        return res.status(400).json({ error: "Cannot delete your own account" });
+      }
+
+      const success = await storage.deleteUser(userId);
+      
+      if (!success) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Log the action
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: "delete_user",
+        resource: "user",
+        resourceId: userId.toString(),
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to delete user" });
+    }
+  });
+
+  // Audit logs
+  app.get("/api/admin/audit-logs", requireSession, requireAdmin, async (req, res) => {
+    try {
+      const { page, limit, userId, action, startDate, endDate } = req.query;
+      const logs = await storage.getAuditLogs({
+        page: page ? parseInt(page as string) : undefined,
+        limit: limit ? parseInt(limit as string) : undefined,
+        userId: userId ? parseInt(userId as string) : undefined,
+        action: action as string,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+      });
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch audit logs" });
+    }
+  });
+
+  // Service health
+  app.get("/api/admin/health", requireSession, requireAdmin, async (req, res) => {
+    try {
+      const health = await storage.getServiceHealth();
+      res.json(health);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch service health" });
+    }
+  });
+
+  app.post("/api/admin/health/:service", requireSession, requireAdmin, async (req, res) => {
+    try {
+      const { service } = req.params;
+      const { status, responseTime, details } = req.body;
+      
+      const health = await storage.updateServiceHealth(service, status, responseTime, details);
+      res.json(health);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to update service health" });
+    }
+  });
+
+  // API usage stats
+  app.get("/api/admin/api-usage", requireSession, requireAdmin, async (req, res) => {
+    try {
+      const { tokenId } = req.query;
+      const stats = await storage.getApiUsageStats(tokenId ? parseInt(tokenId as string) : undefined);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch API usage stats" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
