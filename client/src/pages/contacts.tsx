@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -285,7 +285,7 @@ export default function Contacts() {
             <div className="text-slate-600">Loading contacts...</div>
           </div>
         ) : (
-          <ContactsTable contacts={contactsData?.contacts || []} />
+          <ContactsTable contacts={contactsData?.contacts || []} onEditContact={handleEditContact} />
         )}
 
         {/* Upload Modal */}
@@ -295,6 +295,204 @@ export default function Contacts() {
             onClose={() => setShowUpload(false)}
           />
         )}
+
+        {/* Add Contact Dialog */}
+        <Dialog open={showAddContact} onOpenChange={setShowAddContact}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Add New Contact</DialogTitle>
+              <DialogDescription>
+                Add a new contact to your list. Email is required.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleAddContact} className="space-y-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="email" className="text-right">
+                  Email *
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newContact.email}
+                  onChange={(e) => setNewContact({ ...newContact, email: e.target.value })}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="name"
+                  value={newContact.name}
+                  onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="phone" className="text-right">
+                  Phone
+                </Label>
+                <Input
+                  id="phone"
+                  value={newContact.phone}
+                  onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="company" className="text-right">
+                  Company
+                </Label>
+                <Input
+                  id="company"
+                  value={newContact.company}
+                  onChange={(e) => setNewContact({ ...newContact, company: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="jobTitle" className="text-right">
+                  Job Title
+                </Label>
+                <Input
+                  id="jobTitle"
+                  value={newContact.jobTitle}
+                  onChange={(e) => setNewContact({ ...newContact, jobTitle: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="tags" className="text-right">
+                  Tags
+                </Label>
+                <Input
+                  id="tags"
+                  value={newContact.tags}
+                  onChange={(e) => setNewContact({ ...newContact, tags: e.target.value })}
+                  placeholder="tag1, tag2, tag3"
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="notes" className="text-right">
+                  Notes
+                </Label>
+                <Input
+                  id="notes"
+                  value={newContact.notes}
+                  onChange={(e) => setNewContact({ ...newContact, notes: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={addContactMutation.isPending}>
+                  {addContactMutation.isPending ? "Adding..." : "Add Contact"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Contact Dialog */}
+        <Dialog open={showEditContact} onOpenChange={setShowEditContact}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Edit Contact</DialogTitle>
+              <DialogDescription>
+                Update contact information. Email is required.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleUpdateContact} className="space-y-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-email" className="text-right">
+                  Email *
+                </Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editContact.email}
+                  onChange={(e) => setEditContact({ ...editContact, email: e.target.value })}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="edit-name"
+                  value={editContact.name}
+                  onChange={(e) => setEditContact({ ...editContact, name: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-phone" className="text-right">
+                  Phone
+                </Label>
+                <Input
+                  id="edit-phone"
+                  value={editContact.phone}
+                  onChange={(e) => setEditContact({ ...editContact, phone: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-company" className="text-right">
+                  Company
+                </Label>
+                <Input
+                  id="edit-company"
+                  value={editContact.company}
+                  onChange={(e) => setEditContact({ ...editContact, company: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-jobTitle" className="text-right">
+                  Job Title
+                </Label>
+                <Input
+                  id="edit-jobTitle"
+                  value={editContact.jobTitle}
+                  onChange={(e) => setEditContact({ ...editContact, jobTitle: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-tags" className="text-right">
+                  Tags
+                </Label>
+                <Input
+                  id="edit-tags"
+                  value={editContact.tags}
+                  onChange={(e) => setEditContact({ ...editContact, tags: e.target.value })}
+                  placeholder="tag1, tag2, tag3"
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-notes" className="text-right">
+                  Notes
+                </Label>
+                <Input
+                  id="edit-notes"
+                  value={editContact.notes}
+                  onChange={(e) => setEditContact({ ...editContact, notes: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={editContactMutation.isPending}>
+                  {editContactMutation.isPending ? "Updating..." : "Update Contact"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

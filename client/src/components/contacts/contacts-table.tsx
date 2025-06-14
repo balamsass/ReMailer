@@ -89,6 +89,12 @@ export default function ContactsTable({ contacts, onEditContact }: ContactsTable
                 Contact
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Company / Role
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Phone
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Tags
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
@@ -136,7 +142,7 @@ export default function ContactsTable({ contacts, onEditContact }: ContactsTable
                   {getStatusBadge(contact.status)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                  {formatDate(contact.createdAt)}
+                  {formatDate(contact.createdAt.toString())}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div className="flex space-x-2">
